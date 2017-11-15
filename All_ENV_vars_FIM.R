@@ -20,20 +20,28 @@ library(dplyr) # to do df manipulation
 # select the important recruitment months for each zone and also check on gear codes
 # adjust selected gear if it was not chosen in the first place
 # _C$month => depends on recruitment window in each estuary
-#               => Jax 5<=x<=11
-#               => nor. IRL 5<=x<=11
-#               => CK  5<=x<=11
-#               => TB  4<=x<=10
-#               => CH  4<=x<=10
-#               => AP  6<=x<=10
+#               => Jax 5<=x<=11, => nor. IRL 5<=x<=11, => CK  5<=x<=11, => TB  4<=x<=10, => CH  4<=x<=10, => AP  6<=x<=10
 
-#load the data, select the peak reproductive months, reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
-# left join the datasets with the hydro observations by the variable  "Reference" 
+# load the data, select the peak reproductive months, reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
+# load the hydro dataset that contains Depth where the observation was taken, Temperature, Conductivity, pH, Salinity, Dissolved O2
+# load the 
+# left join the physical data set that contains secchi depth, was secchi on bottom, depth (Depth) where hydrolab observation was taken
+# Note: this Depth is different then depth of location (That is StartDepth and EndDepth)
 
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
 ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
-ap <- left_join(ap, ap_hyd)
+ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys$Reference <- as.character(ap_phys$Reference)
+#There are duplicated References in ap_hyd
+ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
+test <- left_join(ap, ap_hyd)
+
+ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
+
+
+
+
 
 ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
 ck <- ck %>% select(noquote(order(colnames(ck))))
