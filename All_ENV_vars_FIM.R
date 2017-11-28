@@ -1,3 +1,5 @@
+# NO LONGER ACTIVE ## THIS HAS BEEN MOVED TO JOIN_ENV_VARS_with_FIM.R
+
 # ABOUT ####
 # R script for getting all of the FIM habitat and environmental variables together.
 # Some of this script borrows from Delta_Method_For_Producing_Nominal
@@ -5,8 +7,11 @@
 
 # SET WORKING DIRECTORY ####
 #must change working directory for data when working on personal vs work computer
-setwd("~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7")
-setwd("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7")
+personal_comp = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
+work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
+phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
+#setwd(personal_comp)
+setwd(work_comp)
 
 # SET PACKAGES ####
 library(haven) #to load sas
@@ -33,10 +38,11 @@ library(dplyr) # to do df manipulation
 # Reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
 
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
-ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
 #ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ap_phys <- read_sas("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ap_phys$Reference <- as.character(ap_phys$Reference)
+#There are duplicated References in ap_hyd
+ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
 #There are duplicated References in ap_hyd
 ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
 ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
@@ -44,7 +50,7 @@ ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabe
 
 ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
 #ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ck_phys <- read_sas("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ck_phys$Reference <- as.character(ck_phys$Reference)
 ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in ck_hyd
@@ -54,7 +60,7 @@ ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabe
 
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
 #tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-tb_phys <- read_sas("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 tb_phys$Reference <- as.character(tb_phys$Reference)
 tb_hyd <- subset(read_sas("tb_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in tb_hyd
@@ -64,7 +70,7 @@ tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabe
 
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 #ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ch_phys <- read_sas("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ch_phys$Reference <- as.character(ch_phys$Reference)
 ch_hyd <- subset(read_sas("ch_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in ch_hyd
@@ -74,7 +80,7 @@ ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabe
 
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
 #ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ir_phys <- read_sas("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ir_phys$Reference <- as.character(ir_phys$Reference)
 ir_hyd <- subset(read_sas("ir_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in ir_hyd
@@ -84,7 +90,7 @@ ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabe
 
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
 #jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-jx_phys <- read_sas("U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 jx_phys$Reference <- as.character(jx_phys$Reference)
 jx_hyd <- subset(read_sas("jx_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in jx_hyd
@@ -173,6 +179,9 @@ ir.fl$month <- as.factor(as.character(ir.fl$month))
 # PROCUDE ATTENUATION COEFFICIENT FROM SECCHI DEPTH ####
 # Only want to do this for Secchi_on_bottom = NO
 full <- full %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
+
+
+
 
 
 
