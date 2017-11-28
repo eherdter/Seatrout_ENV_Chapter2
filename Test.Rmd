@@ -1,0 +1,63 @@
+---
+title: "Join Enviro Variables for Tampa Bay"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About
+
+This is an R Markdown document. 
+This document details how environmental data not available within the FIM dataset are appended to the FIM catch data set. 
+
+## Set Working Directory ###
+
+The working directory will be different depending on whether I work on my personal or work computer. Identify a working directory for:
+  * personal_comp
+  * work_comp
+```r
+personal_comp = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
+work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
+```
+
+## Load Packages 
+* haven-to load sas7bdat data
+* dplyr- to do df manipulation
+
+```r
+library(haven) 
+library(dplyr) 
+```
+
+## Import Data Sets
+### About the Data
+The fisheries independent monitoring data (FIM) contain positive and zero catch observations of Spotted seatrout for every single haul conducted in each estuary since sampling inception.  
+
+
+
+Load FIM Data and select the important recruitment months for each zone so that we are only selecting young-of-the-year individuals. Also, there was a typo in variable name so adjust it to be consistent with other dataframes. 
+
+``` r
+ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
+```
+
+
+<http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
