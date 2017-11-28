@@ -1,0 +1,149 @@
+---
+title: "Join Enviro Variables for Tampa Bay"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About
+
+This is an R Markdown document. 
+This document details how environmental data not available within the FIM dataset are appended to the FIM catch data set. 
+
+## Set Working Directory ###
+
+The working directory will be different depending on whether I work on my personal or work computer. Identify a working directory for:
+  * personal_comp
+  * work_comp
+Identify a location for other data types. 
+  
+```{r}
+personal_comp = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
+work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
+phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
+nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients"
+
+#setwd(personal_comp)
+setwd(work_comp)
+```
+
+## Load Packages 
+* haven-to load sas7bdat data
+* dplyr- to do df manipulation
+
+```{r}
+library(haven) 
+library(dplyr) 
+```
+
+## Import Data Sets
+### About the Data
+The fisheries independent monitoring data (FIM) contain positive and zero catch observations of Spotted seatrout for every single haul conducted in each estuary since sampling inception.  
+
+
+Load FIM Data and select the important recruitment months for each zone so that we are only selecting young-of-the-year individuals. Also, there was a typo in variable name so adjust it to be consistent with other dataframes. 
+``` {r}
+ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
+```
+ Load the hydro dataset that contains Depth where the observation was taken, Temperature, Conductivity, pH, Salinity, Dissolved O2
+```{r}
+ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
+```
+Load the physical data set that contains secchi depth, a proxy for turbidity and turn Reference into a character. Reference will be used as a matching variable. 
+
+```{r}
+ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys$Reference <- as.character(ap_phys$Reference)
+```
+
+Load the hydro dataset that contains Depth where the hydro observation was taken, Temperature, Conductivity, pH, Salinity, Dissolved O2.it appears at some stations more than 1 hydro observation was recorded so there are duplicate station records. Just select the unique ones.At this point, I have no idea to know which hydro observation is more "accurat" for a certain station. 
+
+``` {r}
+ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
+ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
+```
+Match merge the catch dataframe (ap) with the physical data frame (ap_phys) using the variable Reference. Then again left_join in the hydro (ap_hyd) dataset by reference. Then reorder the columns alphabetically. 
+
+```{r}
+ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
+ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
+```
+
+Do this for all other estuaries.
+
+
+CK
+```{r}
+ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
+#ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys$Reference <- as.character(ck_phys$Reference)
+ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat")) 
+ck_hyd <- ck_hyd[!duplicated(ck_hyd$Reference),]
+ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference")
+ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
+```
+TB
+```{r}
+tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
+#tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys$Reference <- as.character(tb_phys$Reference)
+tb_hyd <- subset(read_sas("tb_yoy_cn_hyd.sas7bdat")) 
+tb_hyd <- tb_hyd[!duplicated(tb_hyd$Reference),]
+tb <- left_join(tb, tb_phys, by="Reference") %>% left_join(tb_hyd, by="Reference")
+tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabetically 
+```
+
+CH
+``` {r}
+ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
+#ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ch_phys$Reference <- as.character(ch_phys$Reference)
+ch_hyd <- subset(read_sas("ch_yoy_cn_hyd.sas7bdat")) 
+#Also duplicated References in ch_hyd
+ch_hyd <- ch_hyd[!duplicated(ch_hyd$Reference),]
+ch <- left_join(ch, ch_phys, by="Reference") %>% left_join(ch_hyd, by="Reference")
+ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabetically 
+```
+
+IR
+```{r}
+ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
+#ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ir_phys$Reference <- as.character(ir_phys$Reference)
+ir_hyd <- subset(read_sas("ir_yoy_cn_hyd.sas7bdat")) 
+#Also duplicated References in ir_hyd
+ir_hyd <- ir_hyd[!duplicated(ir_hyd$Reference),]
+ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference")
+ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
+```
+
+JX
+```{r}
+jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
+#jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+jx_phys$Reference <- as.character(jx_phys$Reference)
+jx_hyd <- subset(read_sas("jx_yoy_cn_hyd.sas7bdat")) 
+jx_hyd <- jx_hyd[!duplicated(jx_hyd$Reference),]
+jx <- left_join(jx, jx_phys, by="Reference") %>% left_join(jx_hyd, by="Reference")
+jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabetically 
+```
+
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
