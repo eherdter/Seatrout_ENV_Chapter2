@@ -38,10 +38,18 @@ The fisheries independent monitoring data (FIM) contain positive and zero catch 
 
 
 Load FIM Data and select the important recruitment months for each zone so that we are only selecting young-of-the-year individuals. Also, there was a typo in variable name so adjust it to be consistent with other dataframes. 
-
 ``` r
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 ```
+ Load the hydro dataset that contains Depth where the observation was taken, Temperature, Conductivity, pH, Salinity, Dissolved O2
+ ```r
+ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
+```
+
+
+
+
+
 
 
 <http://rmarkdown.rstudio.com>.
