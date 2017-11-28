@@ -4,7 +4,9 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+require ("knitr")
 knitr::opts_chunk$set(echo = TRUE)
+opts_knit$set(root.dir ="U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7" )
 ```
 
 ## About
@@ -12,12 +14,9 @@ knitr::opts_chunk$set(echo = TRUE)
 This is an R Markdown document. 
 This document details how environmental data not available within the FIM dataset are appended to the FIM catch data set. 
 
-## Set Working Directory ###
+## Set File Locations ###
 
-The working directory will be different depending on whether I work on my personal or work computer. Identify a working directory for:
-  * personal_comp
-  * work_comp
-Identify a location for other data types. 
+Can't use setwd for knitr so one is chosen as the root directory in the set up chunk and then if I have to reference other places then I will use other locations defined below. 
   
 ```{r}
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
@@ -25,68 +24,57 @@ work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
 nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients"
 
-#setwd(personal_comp)
-setwd(work_comp)
 ```
 
 ## Load Packages 
 * haven-to load sas7bdat data
 * dplyr- to do df manipulation
+* geosphere-  closest lat/long neighbors
+* cluster- to determine medoids
 
 ```{r}
 library(haven) 
 library(dplyr) 
+library(geosphere)
+library(cluster)
 ```
 
 ## Import Data Sets
 ### About the Data
 The fisheries independent monitoring data (FIM) contain positive and zero catch observations of Spotted seatrout for every single haul conducted in each estuary since sampling inception.  
 
-
 Load FIM Data and select the important recruitment months for each zone so that we are only selecting young-of-the-year individuals. Also, there was a typo in variable name so adjust it to be consistent with other dataframes. 
-``` {r}
+```{r Load AP}
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 ```
  Load the hydro dataset that contains Depth where the observation was taken, Temperature, Conductivity, pH, Salinity, Dissolved O2
-```{r}
+```{r Load AP 2}
 ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
 ```
 Load the physical data set that contains secchi depth, a proxy for turbidity and turn Reference into a character. Reference will be used as a matching variable. 
 
-```{r}
+```{r Load AP 3}
 ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ap_phys$Reference <- as.character(ap_phys$Reference)
 ```
 
 Load the hydro dataset that contains Depth where the hydro observation was taken, Temperature, Conductivity, pH, Salinity, Dissolved O2.it appears at some stations more than 1 hydro observation was recorded so there are duplicate station records. Just select the unique ones.At this point, I have no idea to know which hydro observation is more "accurat" for a certain station. 
 
-``` {r}
+``` {r Load AP 4}
 ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
 ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
 ```
 Match merge the catch dataframe (ap) with the physical data frame (ap_phys) using the variable Reference. Then again left_join in the hydro (ap_hyd) dataset by reference. Then reorder the columns alphabetically. 
 
-```{r}
+```{r Load AP 5}
 ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
 ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
 ```
 
 Do this for all other estuaries.
 
-
-CK
-```{r}
-ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
-#ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ck_phys$Reference <- as.character(ck_phys$Reference)
-ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat")) 
-ck_hyd <- ck_hyd[!duplicated(ck_hyd$Reference),]
-ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference")
-ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
-```
-TB
-```{r}
+####TB
+```{r LoadTB}
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
 #tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -97,8 +85,147 @@ tb <- left_join(tb, tb_phys, by="Reference") %>% left_join(tb_hyd, by="Reference
 tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabetically 
 ```
 
-CH
+Clean TB. Add in missing lat and long based on the Zone. I.e. if lat and long is missing then use lat and long for similar zone. This is necessary to be able to match any environmental data based on time and space. 
+
+```{r}
+unique(tb$Zone)
+unique(subset(tb, is.na(Longitude))$Zone) #assume if its missing Long then its also missing Lat
+```
+Determine Zone-based medoids to apply to reference values (aka hauls) that have missing Lat Longs
+
+```{r Zone specific Medoids}
+
+tb_medA <- matrix(pam(subset(tb, Zone=="A" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
+sum(is.na(tb_medA))
+
+tb_medC <- matrix(pam(subset(tb, Zone=="C" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
+sum(is.na(tb_medC))
+
+tb_medD <- matrix(pam(subset(tb, Zone=="D" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
+sum(is.na(tb_medD))
+
+tb_medE <- matrix(pam(subset(tb, Zone=="E" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
+sum(is.na(tb_medE))
+
+tb_medM <- matrix(pam(subset(tb, Zone=="M" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
+sum(is.na(tb_medM))
+```
+Apply zone-specific medoids to missing Long and Lat. Do this with new varaibles NewLong and NewLat
+
+```{r}
+TB_main <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
+
+sum(is.na(TB_main$NewLong))                         
+sum(is.na(TB_main$NewLat))   
+```
+
+### Add in Enviro Data 
+### Nitrogen
+
+```{r Load TB Nitrogen}
+tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
+```
+
+Need to match the nitrogen observation spatially and temporally with the catch observations (to create observations at month of haul- monthly present observations) AS WELL as creating an average nitrogen load prior to 'recruitment' timeframe (to create time lagged). 
+
+Get Year and Month in the right format to match to the TB_main dataframe. 
+
+```{r Strip Time}
+tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
+tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+tb_nit$Date <- as.character(tb_nit$Date)
+
+tb_nit <- tb_nit %>% mutate(Year = substr(Date, 1,4), Month = substr(Date, 6,7)) %>% subset(Characteristic %in% c("Nitrogen") & (Year >1988 & Year<2016)) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID)
+```
+
+Match the nitrogen observation with catch observation based on year, month, and closest Lat and Long.
+
+Must have same year, same month, and closest Lat observation then append on nitrogen observation. 
+
 ``` {r}
+
+[stack overflow link][https://stackoverflow.com/questions/20590119/fuzzy-matching-of-coordinates]
+rain <- structure(list(lat = c(-179.75, -179.75, -179.75, -179.75, -179.75, 
+-179.75, -179.75, -179.75, -179.75, -179.75), lon = c(71.25, 
+68.75, 68.25, 67.75, 67.25, 66.75, 66.25, 65.75, 65.25, -16.75
+), rainfall = c(0, 4.9, 4.6, 4.9, 8.9, 15.2, 24.2, 16.3, 12.2, 
+365.4)), .Names = c("lat", "lon", "rainfall"), class = "data.frame", row.names = c(NA, 
+-10L))
+
+addresses <- structure(list(address_lat = c(-175.33, -175.20, -177.65, -174.10, -175.80, 
+-179.50, -179.23, -179.12, -178.75, -174.77), address_lon = c(70.25, 
+69.75, 62.23, 60.50, 66.25, 61.75, 62.54, 63.70, 61.45, -15.80),
+person_id = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), .Names = c("address_lat", "address_lon",     
+"person_id"), class = "data.frame", row.names = c(NA, -10L))
+
+library(geosphere)
+D = distm(addresses[, 1:2], rain[, 1:2])
+new <- cbind(addresses, rain[apply(D, 1, which.min),])
+
+test <- rain[apply(D, 1, which.min),]
+#try with a shortened version (matching only over 1 variable )
+
+tb_nit_shrt <- tb_nit %>% subset(Year == "1989")
+TB_main <- TB_main %>% subset(year == "1989")
+
+
+
+
+m <- "initialize"
+for i in 1:length(tb_nit)
+if(tb_nit$Year[i] = TB_main$year[i] & TB_main$month[i] = tb_nit$Month[i]{
+  m[i] =cbind(TB_main[i], tb_nit[apply(distm(TB_main[,64:65], tb_nit[,7:8]))])
+  
+  
+}
+
+
+
+
+
+
+
+
+
+
+colnames(tb_nit) #get colnames
+colnames(TB_main)
+
+library(geosphere)
+D = distm(tb_nit[,7:8], TB_main[,64:65])
+
+
+cbind(addresses, rain[apply(D, 1, which.min),])
+
+```
+
+library(geosphere)
+
+        
+
+
+
+
+
+
+CK
+```{r Load CK, include =FALSE}
+ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
+#ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys$Reference <- as.character(ck_phys$Reference)
+ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat")) 
+ck_hyd <- ck_hyd[!duplicated(ck_hyd$Reference),]
+ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference")
+ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
+```
+             
+                         
+CH
+``` {r Load CH, include=FALSE}
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 #ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -111,7 +238,7 @@ ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabe
 ```
 
 IR
-```{r}
+```{r Load IR, include=FALSE}
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
 #ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -124,7 +251,7 @@ ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabe
 ```
 
 JX
-```{r}
+```{r Load JX, include=FALSE}
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
 #jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -134,6 +261,57 @@ jx_hyd <- jx_hyd[!duplicated(jx_hyd$Reference),]
 jx <- left_join(jx, jx_phys, by="Reference") %>% left_join(jx_hyd, by="Reference")
 jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabetically 
 ```
+
+
+## Add in Enviro Data 
+### Nitrogen
+
+``` {r Load TB Nitrogen}
+tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
+```
+
+Need to match the nitrogen observation spatially and temporally with the catch observations (to create observations at month of haul- monthly present observations) AS WELL as creating an average nitrogen load prior to 'recruitment' timeframe (to create time lagged). 
+
+First, present observations. Match by year and sampling month. Use strp time. 
+
+```{r Strip Time}
+tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
+tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+tb_nit$Date <- as.character(tb_nit$Date)
+tb_nit <- tb_nit %>% mutate(Year = substr(Date, 1,4), Month = substr(Date, 6,7)) %>% select(-SampleDate)
+
+library(geosphere)
+D = distm(addresses[,1:2], rain[,1:2])
+cbind(addresses, rain[apply(D, 1, which.min),])
+
+```
+
+library(geosphere)
+
+
+
+
+### Phosphorous
+
+```{r}
+tb_p1 <- read.csv(paste(nutrient_dat, "Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_p2 <- read.csv(paste(nutrient_dat, "Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_p3 <- read.csv(paste(nutrient_dat, "Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_p4 <- read.csv(paste(nutrient_dat, "Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
