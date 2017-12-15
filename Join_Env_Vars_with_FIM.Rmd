@@ -132,44 +132,90 @@ Load all accessory environmental variables for Tampa Bay
 * Streamflow
 * Water Temperature 
 ```{r Load TB Enviro Data}
-tb_nit1 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_nit2 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit3 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+#Nitrogen#
+tb_nit1 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"), header=T)
+tb_nit2 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"), header=T)
+tb_nit3 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"), header=T)
 
-tb_p1 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_p2 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_p3 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_p4 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+#Phosporous#
+tb_p1 <- read.csv(paste(enviro_dat, "Nutrients/Phosphorous/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"), header=T)
+tb_p2 <- read.csv(paste(enviro_dat, "Nutrients/Phosphorous/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"), header=T)
+tb_p3 <- read.csv(paste(enviro_dat, "Nutrients/Phosphorous/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"), header=T)
+tb_p4 <- read.csv(paste(enviro_dat, "Nutrients/Phosphorous/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"), header=T)
 
 tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
 tb_ph = rbind(tb_p1, tb_p2, tb_p3, tb_p4)
-tb_maxT = read.csv(paste(enviro_dat,"AirTemp/Max_Temp_CD3.csv", sep="/")) 
-tb_minT = read.csv(paste(enviro_dat,"AirTemp/Min_Temp_CD3.csv", sep="/")) 
 
-tb_PalZ = read.csv(paste(enviro_dat,"PalmerZ/PalmerZ_CD3.csv", sep="/")) 
+#Max and Min Temp# 
+tb_maxT = read.csv(paste(enviro_dat,"AirTemp/Max_Temp_CD3.csv", sep="/"), header=T, skip=5)   #skip text padding at top
+tb_minT = read.csv(paste(enviro_dat,"AirTemp/Min_Temp_CD3.csv", sep="/"), header=T, skip=5)   #skip text padding at top
 
+#Palmer Z#
+tb_PalZ = read.csv(paste(enviro_dat,"PalmerZ/PalmerZ_CD3.csv", sep="/"), header=T, skip=3)    #skip text padding at top
+
+#Rainfall#
 tb_r1 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_89_97.csv", sep="/"))
 tb_r2 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_98_07.csv", sep="/")) 
-tb_r3 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_89_97.csv", sep="/")) 
+tb_r3 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_08_17.csv", sep="/")) 
+tb_rain = rbind(tb_r1, tb_r2, tb_r3)
+
+# Salinity #
+tb_Sal = rbind(read.csv(paste(enviro_dat,"Salinity/TB/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/")),                   read.csv(paste(enviro_dat,"Salinity/TB/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/")),
+             read.csv(paste(enviro_dat,"Salinity/TB/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/")),
+             read.csv(paste(enviro_dat,"Salinity/TB/Salinity_OldTampaBay_EPCRoutine.csv", sep="/")))
+
+# Seagrass #
+tb_SeaG = read.csv(paste(enviro_dat,"Seagrass Cover/SWFWMD_Seagrass_TB.csv", sep="/"))
+
+# Stream Flow #
+SF = read.csv(paste(enviro_dat,"Streamflow/TB/Alafia_River.csv", sep="/"), header=T, skip=28) %>% rename(Val=X25177_00060_00003, Cd = X25177_00060_00003_cd)
+SF1 = read.csv(paste(enviro_dat,"Streamflow/TB/Hillsborough_river.csv", sep="/"), header=T, skip=28) %>% rename(Val= X25432_00060_00003, Cd= X25432_00060_00003_cd)
+SF2 = read.csv(paste(enviro_dat,"Streamflow/TB/Little.Manatee_River.csv", sep="/"), header=T, skip=28) %>% rename(Val=X25075_00060_00003, Cd=X25075_00060_00003_cd)
+
+tb_StrF = rbind(SF, SF1, SF2)
+
+#WaterTemp #
+
+wt = read.csv(paste(enviro_dat,"WaterTemp/TB/Water_temperature_Hillsborough_Bay.csv",  sep="/"), header=T)
+wt1 = read.csv(paste(enviro_dat,"WaterTemp/TB/Water_temperature_Lower_Tampa_Bay.csv",  sep="/"), header=T)
+wt2 = read.csv(paste(enviro_dat,"WaterTemp/TB/Water_temperature_Middle_Tampa_Bay.csv",  sep="/"), header=T)
+
+tb_wtrT = rbind(wt, wt1, wt2)
+
+rm(wt, wt1, wt2, SF, SF1, SF2, tb_r1, tb_r2, tb_r3, tb_p1, tb_p2, tb_p3, tb_p4, tb_nit1, tb_nit2, tb_nit3) 
+
 ```
 
+Now that all data are loaded I need to join them spatially and temporally. Temporal matching will have two set-ups (depending on the data type). 
+
+ * spatially- by closest lat and long
+ * temporally (set up 1)- by month of FIM haul 
+ * temporally (set up 2) - lagged 
+
+Temporal Set up 1 - At month/time  of sampling
+* Max Temp- max temp that month if sampling happened at end of month, if sampling happened             in beginning of month then do last month max: average max temp of closest                 month)
+* Min Temp- min temp of closest month
+* Nutrients - nitrogen and phosphorous load of closest month 
+* Drought - drought index of closest month
+* Rain fall - total rainfall of closest month
+* Salinity (from FIM)
+* Streamflow - total streamflow of closest month
+* Water Temp (from FIM)
+
+Temporal Set up 2 - Lagged 
+* Max Temp - average maximum air temperature prior 
+* Min Temp - average minimum air temperature prior
+* Nutrients - total nitrogen load 2 months prior
+* Drought - average drought index prior 
+* Rainfall - total year-specific rainfall to-date starting at time of spawning
+* Streamflow - total year-specific streamflow to-date starting at time of spawning
+* Salinity - average salinity prior
+* WaterTemp - average water temp prior 
 
 
+Need to format the environmental data to achieve the above described matching. 
 
-
-
-
-
-
-
-
-
-
-
-Need to match the nitrogen observation spatially and temporally with the catch observations (to create observations at month of haul- monthly present observations) AS WELL as creating an average nitrogen load prior to 'recruitment' timeframe (to create time lagged). 
-
-Get Year and Month in the right format to match to the TB_main dataframe. 
-```{r Format Nitrogen -strip time}
+```{r Format Enviro Data}
 tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
 tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
 tb_nit$Date <- as.character(tb_nit$Date)
@@ -179,9 +225,8 @@ tb_nit$Year <- as.numeric(tb_nit$Year)
 tb_nit$Month <- as.numeric(tb_nit$Month)
 ```
 
-Match the nitrogen observation with catch observation based on year, month, and closest Lat and Long.Must have same year, same month, and closest Lat observation then append on nitrogen observation. Going to match lat and long by fuzzy matching and month and year exactly. 
-
-Starting with lat and long fuzzy matching because it's trickier and requires some determination of the fuzzy match. 
+First define the spatial scale of matching.
+Starting with lat and long fuzzy matching. 
 
 ```{r}
 range(unique(tb_nit$Actual_Latitude)) #determine the total range of latitudes in the TB_nit
@@ -210,17 +255,106 @@ Fuzzy long distance must be at least 0.0868976 per above logic.
 Run the loop using the defined fuzzy match.
 
 ```{r}
-fuzzy_lat = max(min(unique(tb_nit$Actual_Latitude)) - min(unique(TB_main$NewLat)), max(unique(tb_nit$Actual_Latitude)) - max(unique(TB_main$NewLat)))
+#fuzzy_lat = max(min(unique(tb_nit$Actual_Latitude)) - min(unique(TB_main$NewLat)), max(unique(tb_nit$Actual_Latitude)) - max(unique(TB_main$NewLat)))
 
-fuzzy_long = max(min(unique(tb_nit$Actual_Longitude)) - min(unique(TB_main$NewLong)),max(unique(tb_nit$Actual_Longitude)) - max(unique(TB_main$NewLong)))
+#fuzzy_long = max(min(unique(tb_nit$Actual_Longitude)) - min(unique(TB_main$NewLong)),max(unique(tb_nit$Actual_Longitude)) - max(unique(TB_main$NewLong)))
+
+fuzzy_lat = 0.1
+fuzzy_long = 0.1 
+
+# Build function for spatial and temporal matching
+
 
 
 TB_main =TB_main[1:5,]
 
 selected <- NULL
 
-for(i in 1:nrow(TB_main))
+match = function(main, EnviroDS, fuzzy_lat, fuzzy_long){
+  selected <- NULL
+for(i in 1:nrow(main))
 {
+  # re-initialize these data structs for new pass
+  match_matrix <- NULL
+  #names(match_matrix) <- c("catch month", "catch year", "refID", "nit_val", "nit_lat","nit_long","dist")
+  Comb <- data.frame(Month=numeric(),Year=numeric(),RefID=numeric(),Value=numeric(),Latitude=numeric(),Longitude=numeric())
+  
+  #define some variables
+  catch_year=main[i,61]
+  catch_month= main[i,30]
+  catch_lat= main[i,65]
+  catch_long= main[i, 64]
+  catch_ref =  main[i,41]
+  coordinates = as.numeric(c(main[i,64], main[i,65]))
+  
+  for(j in 1:nrow(EnviroDS))
+  {
+    #define some variables
+    env_year=EnviroDS[j,7]
+    env_month=EnviroDS[j,8]
+    env_lat =EnviroDS[j,1]
+    env_long = EnviroDS[j,2]
+    env_val = EnviroDS[j,6]
+    
+    if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+    {
+      print("NA Found")
+    }
+    else if((catch_year==env_year)&(catch_month==env_month))
+    {
+      #defining box to place around each coordinate pair assocaited with catch
+      # this reduces the amount of coordinate points that are selected from within tb_nit that are then used in a pairwise distance comparison
+      
+      fuzzymax_lat = catch_lat +fuzzy_lat #main$NewLat
+      fuzzymin_lat = catch_lat -fuzzy_lat
+      fuzzymax_long = catch_long + fuzzy_long #main$NewLong
+      fuzzymin_long = catch_long - fuzzy_long
+      
+      if((env_lat > fuzzymin_lat) & (env_lat < fuzzymax_lat) & (env_long > fuzzymin_long) & (env_long < fuzzymax_long)) 
+        #if the lat long of enviro data set falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+      {
+        
+        m=NULL
+        m[1] = catch_month
+        m[2]=catch_year
+        m[3]= catch_ref     
+        m[4] = env_val
+        m[5] = env_long
+        m[6] = env_lat
+        m[7]= as.numeric(NA) # placeholder for distance 
+        
+        match_matrix <- rbind(match_matrix,m) #builds on to mmatch matrix as it cycles through j rows
+        mm_mat <- matrix(unlist(match_matrix),nrow=nrow(match_matrix)) #gets the coordinates in the right form 
+        mm_mat[,7] = distm(mm_mat[,5:6], coordinates)
+        mm_df <- data.frame(mm_mat)
+        colnames(mm_df) <- c("a", "b", "c", "d", "e", "f", "g")
+        mm_df$g <- as.numeric(as.character(mm_df$g))
+        
+        env_station_match = NULL
+        env_station_match <- as.matrix(mm_df[mm_df$g == min(mm_df$g),])
+        #selected <- rbind(selected, nit_station)
+        
+      }
+    }
+  }
+  selected <- rbind(selected, env_station_match)
+}
+
+  
+  }
+
+
+match(TB_main, tb_nit, 0.1, 0.1) 
+
+
+
+fuzzy_lat=0.1
+fuzzy_long=0.1
+
+
+selected <- NULL
+
+for(i in 1:nrow(TB_main)){
   # re-initialize these data structs for new pass
   match_matrix <- NULL
   #names(match_matrix) <- c("catch month", "catch year", "refID", "nit_val", "nit_lat","nit_long","dist")
@@ -228,13 +362,14 @@ for(i in 1:nrow(TB_main))
   hit_counter = 1
   
   #define some variables
-  catch_year=TB_main[i,59]
-  catch_month=TB_main[i,30]
-  catch_lat=TB_main[i,63]
-  catch_long=TB_main[i, 62]
-  catch_ref = TB_main[i,41]
-  TB_cor = as.numeric(c(TB_main[i,62], TB_main[i,63]))
+  catch_year=TB_main[1,61]
+  catch_month=TB_main[1,30]
+  catch_lat=TB_main[1,65]
+  catch_long=TB_main[1, 64]
+  catch_ref = TB_main[1,41]
+  TB_cor = as.numeric(c(TB_main[1,64], TB_main[1,65]))
   
+
   for(j in 1:nrow(tb_nit))
   {
     #define some variables
@@ -294,7 +429,41 @@ for(i in 1:nrow(TB_main))
     }
   }
   selected <- rbind(selected, nit_station_match)
+  
+  
+  
+  
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```
 
