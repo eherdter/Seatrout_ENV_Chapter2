@@ -16,13 +16,13 @@ This document details how environmental data not available within the FIM datase
 
 ## Set File Locations ###
 
-Can't use setwd for knitr so one is chosen as the root directory in the set up chunk and then if I have to reference other places then I will use other locations defined below. 
+Can't Use setwd for knitr so one is chosen as the root directory in the set up chunk and then if I have to reference other places then I will use other locations defined below. 
   
 ```{r}
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
-nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients"
+enviro_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data"
 
 ```
 
@@ -39,8 +39,7 @@ library(geosphere)
 library(cluster)
 ```
 
-## Import Data Sets
-### About the Data
+## Import Data Sets/ About Data 
 The fisheries independent monitoring data (FIM) contain positive and zero catch observations of Spotted seatrout for every single haul conducted in each estuary since sampling inception.  
 
 Load FIM Data and select the important recruitment months for each zone so that we are only selecting young-of-the-year individuals. Also, there was a typo in variable name so adjust it to be consistent with other dataframes. 
@@ -73,7 +72,7 @@ ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabe
 
 Do this for all other estuaries.
 
-####TB
+# TB
 ```{r LoadTB}
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
 #tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -87,13 +86,13 @@ tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabe
 
 Clean TB. Add in missing lat and long based on the Zone. I.e. if lat and long is missing then use lat and long for similar zone. This is necessary to be able to match any environmental data based on time and space. 
 
-```{r}
+```{r clean TB}
 unique(tb$Zone)
 unique(subset(tb, is.na(Longitude))$Zone) #assume if its missing Long then its also missing Lat
 ```
 Determine Zone-based medoids to apply to reference values (aka hauls) that have missing Lat Longs
 
-```{r Zone specific Medoids}
+```{r TB Zone specific Medoids}
 
 tb_medA <- matrix(pam(subset(tb, Zone=="A" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
 sum(is.na(tb_medA))
@@ -111,7 +110,7 @@ tb_medM <- matrix(pam(subset(tb, Zone=="M" & !is.na(Longitude) & !is.na(Latitude
 sum(is.na(tb_medM))
 ```
 Apply zone-specific medoids to missing Long and Lat. Do this with new varaibles NewLong and NewLat 
-```{r}
+```{r TB apply medoids to missing lat/long}
 TB_main <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
 
 TB_main$year <- as.numeric(TB_main$year)
@@ -120,18 +119,57 @@ TB_main$month <- as.numeric(TB_main$month)
 sum(is.na(TB_main$NewLong))                         
 sum(is.na(TB_main$NewLat))   
 ```
-### Add in Enviro Data 
-### Nitrogen
-```{r Load TB Nitrogen}
-tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+
+Load all accessory environmental variables for Tampa Bay
+* Nitrogen
+* Phosphorous
+* Max Air Temp-CD3
+* Min Air Temp-CD3
+* Palmer Z-CD3
+* Rainfall
+* Long-term Salinity
+* Seagrass Acreage
+* Streamflow
+* Water Temperature 
+```{r Load TB Enviro Data}
+tb_nit1 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_nit2 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit3 <- read.csv(paste(enviro_dat, "Nutrients/Nitrogen/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+
+tb_p1 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_p2 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_p3 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_p4 <- read.csv(paste(enviro_dat, "Phosphorous/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+
 tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
+tb_ph = rbind(tb_p1, tb_p2, tb_p3, tb_p4)
+tb_maxT = read.csv(paste(enviro_dat,"AirTemp/Max_Temp_CD3.csv", sep="/")) 
+tb_minT = read.csv(paste(enviro_dat,"AirTemp/Min_Temp_CD3.csv", sep="/")) 
+
+tb_PalZ = read.csv(paste(enviro_dat,"PalmerZ/PalmerZ_CD3.csv", sep="/")) 
+
+tb_r1 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_89_97.csv", sep="/"))
+tb_r2 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_98_07.csv", sep="/")) 
+tb_r3 = read.csv(paste(enviro_dat,"Rainfall/TB_Rainfall_89_97.csv", sep="/")) 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Need to match the nitrogen observation spatially and temporally with the catch observations (to create observations at month of haul- monthly present observations) AS WELL as creating an average nitrogen load prior to 'recruitment' timeframe (to create time lagged). 
 
 Get Year and Month in the right format to match to the TB_main dataframe. 
-```{r Strip Time}
+```{r Format Nitrogen -strip time}
 tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
 tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
 tb_nit$Date <- as.character(tb_nit$Date)
@@ -170,118 +208,101 @@ Fuzzy lat distance must be at least 0.1068669 or else the minimum lat observatio
 Fuzzy long distance must be at least 0.0868976 per above logic. 
 
 Run the loop using the defined fuzzy match.
+
 ```{r}
-fuzzy_lat = 0.001 #max(min(unique(tb_nit$Actual_Latitude)) - min(unique(TB_main$NewLat)), max(unique(tb_nit$Actual_Latitude)) - max(unique(TB_main$NewLat)))
+fuzzy_lat = max(min(unique(tb_nit$Actual_Latitude)) - min(unique(TB_main$NewLat)), max(unique(tb_nit$Actual_Latitude)) - max(unique(TB_main$NewLat)))
 
-fuzzy_long = 0.001 # max(min(unique(tb_nit$Actual_Longitude)) - min(unique(TB_main$NewLong)),max(unique(tb_nit$Actual_Longitude)) - max(unique(TB_main$NewLong)))
-TB_main_sub <- TB_main %>% subset(year  ==1989 & month ==8)
-tb_nit_sub <- tb_nit %>% subset(Year == 1989 & Month ==  8)
+fuzzy_long = max(min(unique(tb_nit$Actual_Longitude)) - min(unique(TB_main$NewLong)),max(unique(tb_nit$Actual_Longitude)) - max(unique(TB_main$NewLong)))
 
 
+TB_main =TB_main[1:5,]
 
-for(i in 1:nrow(TB_main_sub))
-  for(j in 1:nrow(tb_nit_sub))
-    if((TB_main_sub[i,61] == tb_nit_sub[j,7]) & (TB_main_sub[i,30] == tb_nit_sub[j, 8])){
-      fuzzymax_lat = TB_main_sub[i,65] +fuzzy_lat #TB_main_sub$NewLat
-      fuzzymin_lat = TB_main_sub[i, 65] -fuzzy_lat
-      fuzzymax_long = TB_main_sub[i, 64] + fuzzy_long #TBmain$NewLong
-      fuzzymin_long = TB_main_sub[i, 64] - fuzzy_long}
-else{NULL}
-        if((tb_nit_sub[j, 1] > fuzzymin_lat) & (tb_nit_sub[j, 1] < fuzzymax_lat) & (tb_nit_sub[2]>fuzzymin_long) & (tb_nit_sub[2] < fuzzymax_long)) {
-          #if((tb_nit_sub[2]>fuzzymin_long) & (tb_nit_sub[2] < fuzzymax_long)){
-            TBcomb <- data.frame(Month=numeric())
-            #Year=numeric(), refid=character(), nitrogen=numeric(), FIMlat=numeric(), FIMlong=numeric(), nitlat=numeric(), nitlong=numeric())}}
-        
-            
-            TBcomb$Month = TB_main_sub[i,30]
-        #TBcomb$Year = TB_main$year[i]
-        #TBcomb$refid = TB_main$Reference[i]
-        #TBcomb$nitrogen = tb_nit$Result_Value[j]
-        #TBcomb$FIMlat = TB_main$NewLat[i]
-        #TBcomb$FIMlong = TB_main$NewLong[i]
-        #TBcomb$nitlat = TB_nit$Actual_Latitude[j]
-        #TBcomb$nitlong =TB_nit$Actual_Longitude[j]
-          }
-      else{NULL}
+selected <- NULL
+
+for(i in 1:nrow(TB_main))
+{
+  # re-initialize these data structs for new pass
+  match_matrix <- NULL
+  #names(match_matrix) <- c("catch month", "catch year", "refID", "nit_val", "nit_lat","nit_long","dist")
+  TBcomb <- data.frame(Month=numeric(),Year=numeric(),RefID=numeric(),Nitrogen=numeric(),Latitude=numeric(),Longitude=numeric())
+  hit_counter = 1
+  
+  #define some variables
+  catch_year=TB_main[i,59]
+  catch_month=TB_main[i,30]
+  catch_lat=TB_main[i,63]
+  catch_long=TB_main[i, 62]
+  catch_ref = TB_main[i,41]
+  TB_cor = as.numeric(c(TB_main[i,62], TB_main[i,63]))
+  
+  for(j in 1:nrow(tb_nit))
+  {
+    #define some variables
+    nit_year=tb_nit[j,7]
+    nit_month=tb_nit[j,8]
+    nit_lat =tb_nit[j,1]
+    nit_long = tb_nit[j,2]
+    nit_val = tb_nit[j,6]
     
-
-   set1 <- structure(list(lon = c(13.671114, 12.866947, 15.94223, 11.099736,  
-         12.958342, 14.203892, 11.86389, 16.526674, 16.193064, 17.071392
-        ), lat = c(48.39167, 48.148056, 48.721111, 47.189167, 47.054443, 
-         47.129166, 47.306667, 47.84, 47.304167, 48.109444)), .Names = c("lon", 
-       "lat"), row.names = c(NA, 10L), class = "data.frame")
-
- set2 <- structure(list(lon = structure(c(14.4829998016357, 32.4000015258789, 
-      -8.66600036621094, 15.4670000076294, 18.9160003662109, 19.0160007476807, 
-      31.0990009307861, 14.3660001754761, 9.59899997711182, 11.0830001831055
-       ), .Dim = 10L), lat = structure(c(35.8499984741211, 34.75, 70.9329986572266, 
-      78.25, 69.6829986572266, 74.515998840332, 70.3659973144531, 67.265998840332, 
-       63.6990013122559, 60.1990013122559), .Dim = 10L)), .Names = c("lon", 
-      "lat"), row.names = c(NA, 10L), class = "data.frame")
-
- dd<- rdist.earth(set1,set2,miles=FALSE)
-
-
-
-[stack overflow link][https://stackoverflow.com/questions/20590119/fuzzy-matching-of-coordinates]
-rain <- structure(list(lat = c(-179.75, -179.75, -179.75, -179.75, -179.75, 
--179.75, -179.75, -179.75, -179.75, -179.75), lon = c(71.25, 
-68.75, 68.25, 67.75, 67.25, 66.75, 66.25, 65.75, 65.25, -16.75
-), rainfall = c(0, 4.9, 4.6, 4.9, 8.9, 15.2, 24.2, 16.3, 12.2, 
-365.4)), .Names = c("lat", "lon", "rainfall"), class = "data.frame", row.names = c(NA, 
--10L))
-
-addresses <- structure(list(address_lat = c(-175.33, -175.20, -177.65, -174.10, -175.80, 
--179.50, -179.23, -179.12, -178.75, -174.77), address_lon = c(70.25, 
-69.75, 62.23, 60.50, 66.25, 61.75, 62.54, 63.70, 61.45, -15.80),
-person_id = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), .Names = c("address_lat", "address_lon",     
-"person_id"), class = "data.frame", row.names = c(NA, -10L))
-
-library(geosphere)
-D = distm(addresses[, 1:2], rain[, 1:2])
-new <- cbind(addresses, rain[apply(D, 1, which.min),])
-
-test <- rain[apply(D, 1, which.min),]
-#try with a shortened version (matching only over 1 variable )
-
-tb_nit_shrt <- tb_nit %>% subset(Year == "1989")
-TB_main <- TB_main %>% subset(year == "1989")
-
-
-
-
-m <- "initialize"
-for i in 1:length(tb_nit)
-if(tb_nit$Year[i] = TB_main$year[i] & TB_main$month[i] = tb_nit$Month[i]{
-  m[i] =cbind(TB_main[i], tb_nit[apply(distm(TB_main[,64:65], tb_nit[,7:8]))])
-  
-  
+    if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+    {
+      print("NA Found")
+    }
+    else if((catch_year==nit_year)&(catch_month==nit_month))
+    {
+      #defining box to place around each coordinate pair assocaited with catch
+      # this reduces the amount of coordinate points that are selected from within tb_nit that are then used in a pairwise distance comparison
+      
+      fuzzymax_lat = catch_lat +fuzzy_lat #TB_main_sub$NewLat
+      fuzzymin_lat = catch_lat -fuzzy_lat
+      fuzzymax_long = catch_long + fuzzy_long #TBmain$NewLong
+      fuzzymin_long = catch_long - fuzzy_long
+      
+      if((nit_lat > fuzzymin_lat) & (nit_lat < fuzzymax_lat) & (nit_long > fuzzymin_long) & (nit_long < fuzzymax_long)) 
+        #if the lat long of nitrogen falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+      {
+        
+        # TBcomb[hit_counter,1] = catch_month
+        # TBcomb[hit_counter,2] = catch_year
+        # TBcomb[hit_counter,3] = catch_ref
+        # TBcomb[hit_counter,4] = nit_val #result value
+        # TBcomb[hit_counter, 5] = nit_lat
+        # TBcomb[hit_counter, 6] = nit_long
+        # hit_counter = hit_counter + 1
+        
+        m=NULL
+        m[1] = catch_month
+        m[2]=catch_year
+        m[3]= catch_ref     
+        m[4] = nit_val
+        m[5] = nit_long
+        m[6] = nit_lat
+        m[7]= as.numeric(NA) # placeholder for distance 
+        
+        match_matrix <- rbind(match_matrix,m)
+        mm_mat <- matrix(unlist(match_matrix),nrow=nrow(match_matrix))
+        mm_mat[,7] = distm(mm_mat[,5:6], TB_cor)
+        mm_df <- data.frame(mm_mat)
+        colnames(mm_df) <- c("a", "b", "c", "d", "e", "f", "g")
+        mm_df$g <- as.numeric(as.character(mm_df$g))
+        
+        nit_station_match = NULL
+        nit_station_match <- as.matrix(mm_df[mm_df$g == min(mm_df$g),])
+        #selected <- rbind(selected, nit_station)
+        
+      }
+    }
+  }
+  selected <- rbind(selected, nit_station_match)
 }
- 
-
-
-
-library(geosphere)
-D = distm(tb_nit[,7:8], TB_main[,64:65])
-
-
-cbind(addresses, rain[apply(D, 1, which.min),])
-
-
-
-if(TB_main$month == tb_nit$)
-
-
-
-
 
 ```
 
-library(geosphere)
+
 
       
 
-CK
+#CK
 ```{r Load CK, include =FALSE}
 ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
 #ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -294,7 +315,7 @@ ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabe
 ```
              
                          
-CH
+#CH
 ``` {r Load CH, include=FALSE}
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 #ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -307,7 +328,7 @@ ch <- left_join(ch, ch_phys, by="Reference") %>% left_join(ch_hyd, by="Reference
 ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabetically 
 ```
 
-IR
+#IR
 ```{r Load IR, include=FALSE}
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
 #ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -320,7 +341,7 @@ ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference
 ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
 ```
 
-JX
+#JX
 ```{r Load JX, include=FALSE}
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
 #jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -331,48 +352,6 @@ jx_hyd <- jx_hyd[!duplicated(jx_hyd$Reference),]
 jx <- left_join(jx, jx_phys, by="Reference") %>% left_join(jx_hyd, by="Reference")
 jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabetically 
 ```
-
-
-## Add in Enviro Data 
-### Nitrogen
-
-``` {r Load TB Nitrogen}
-tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
-```
-
-Need to match the nitrogen observation spatially and temporally with the catch observations (to create observations at month of haul- monthly present observations) AS WELL as creating an average nitrogen load prior to 'recruitment' timeframe (to create time lagged). 
-
-First, present observations. Match by year and sampling month. Use strp time. 
-
-```{r Strip Time}
-tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
-tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
-tb_nit$Date <- as.character(tb_nit$Date)
-tb_nit <- tb_nit %>% mutate(Year = substr(Date, 1,4), Month = substr(Date, 6,7)) %>% select(-SampleDate)
-
-library(geosphere)
-D = distm(addresses[,1:2], rain[,1:2])
-cbind(addresses, rain[apply(D, 1, which.min),])
-
-```
-
-library(geosphere)
-
-
-
-
-### Phosphorous
-
-```{r}
-tb_p1 <- read.csv(paste(nutrient_dat, "Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_p2 <- read.csv(paste(nutrient_dat, "Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_p3 <- read.csv(paste(nutrient_dat, "Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_p4 <- read.csv(paste(nutrient_dat, "Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
-```
-
 
 
 
