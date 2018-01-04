@@ -4,9 +4,9 @@ rm(list=ls())
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
-nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
-#nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
-setwd(work_comp)
+#nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
+nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
+setwd(personal_comp)
 # ## Load Packages 
 # * haven-to load sas7bdat daat
 # * dplyr- to do df manipulation
@@ -54,7 +54,7 @@ sum(is.na(tb_medM))
 #Apply zone-specific medoids to missing Long and Lat. Do this with new varaibles NewLong and NewLat 
 
 TB_main <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
-TB_main <- TB_main %>% mutate(year = substr(as.character(TB_main$year),1,4)) #make year format match that of the coming nitrogen data
+TB_main <- TB_main %>% mutate(year = substr(as.character(TB_main$year),3,4)) #make year format match that of the coming nitrogen data
 
 TB_main$year <- as.numeric(TB_main$year)
 TB_main$month <- as.numeric(TB_main$month)
@@ -79,25 +79,21 @@ tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
 tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
 tb_nit$Date <- as.character(tb_nit$Date)
 
-tb_nit <- tb_nit %>% mutate(Year = substr(Date, 1,4), Month = substr(Date, 6,7)) %>% subset(Characteristic %in% c("Nitrogen")) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID)
+tb_nit <- tb_nit %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Characteristic %in% c("Nitrogen")) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID)
 tb_nit$Year <- as.numeric(tb_nit$Year)
 tb_nit$Month <- as.numeric(tb_nit$Month)
 
 #Trim some of the nitrogen data 
 #
 
-test = subset(tb_nit, Month <= max(unique(TB_main$month)),Year>= min(unique(TB_main$year)) & Year <= max(unique(TB_main$year)))
+#test = subset(tb_nit, Month <= max(unique(TB_main$month)),Year>= min(unique(TB_main$year)) & Year <= max(unique(TB_main$year)))
 
 
 # Define fuzzy lat/long boundaries ####
-fuzzy_lat = 0.5
-fuzzy_long = 0.5
+fuzzy_lat = 0.04
+fuzzy_long = 0.04
 
-TB_main =data.frame(TB_main[1:5,]) #test it with a shortened df
-
-
-
-
+TB_main =data.frame(TB_main[1:20,]) #test it with a shortened df
 
 #selected <- NULL
 nRow=nrow(TB_main)
@@ -168,17 +164,24 @@ for(i in 1:nrow(TB_main))
         
     
       }
-
-      #compute pairwise distances between the lat and long from the TB_main loop and between the lats and long from tb_nit selected above
-      match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
-      match_matrix <- na.omit(match_matrix)
-   
-      nit_station_match = as.list(seq_len(1))
-      nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
       
+      #compute pairwise distances between the lat and long from the TB_main loop and between the lats and long from tb_nit selected above
+      # match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+      # match_matrix <- na.omit(match_matrix)
+      # 
+      # nit_station_match = as.list(seq_len(1))
+      # nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
+      # 
     }
+    
+    
 
   }
+  match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+  match_matrix <- na.omit(match_matrix)
+  
+  nit_station_match = as.list(seq_len(1))
+  nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
   
   selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
   selection = do.call(rbind, selected) #do.call bind
