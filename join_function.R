@@ -1,5 +1,4 @@
 
-
 rm(list=ls())
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
@@ -12,7 +11,6 @@ setwd(work_comp)
 # * dplyr- to do df manipulation
 # * geosphere-  closest lat/long neighbors
 # * cluster- to determine medoids
-
 
 library(haven) 
 library(dplyr) 
