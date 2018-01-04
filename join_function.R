@@ -4,9 +4,9 @@ rm(list=ls())
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
-#nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
-nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
-setwd(personal_comp)
+nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
+#nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
+setwd(work_comp)
 # ## Load Packages 
 # * haven-to load sas7bdat daat
 # * dplyr- to do df manipulation
@@ -53,19 +53,24 @@ sum(is.na(tb_medM))
 
 #Apply zone-specific medoids to missing Long and Lat. Do this with new varaibles NewLong and NewLat 
 
-TB_main <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
-TB_main <- TB_main %>% mutate(year = substr(as.character(TB_main$year),3,4)) #make year format match that of the coming nitrogen data
+TB_cat <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
+TB_cat <- TB_cat %>% mutate(year = substr(as.character(TB_cat$year),3,4)) #make year format match that of the coming nitrogen data
 
-TB_main$year <- as.numeric(TB_main$year)
-TB_main$month <- as.numeric(TB_main$month)
-TB_main <- data.frame(TB_main)
+TB_cat$year <- as.factor(TB_cat$year)
+TB_cat$month <- as.numeric(TB_cat$month)
+TB_cat <- data.frame(TB_cat)
 
-#sum(is.na(TB_main$NewLong))                         
-#sum(is.na(TB_main$NewLat))   
+#Trim TB_main to select the most important zones
+#select zones that occur at least 10% of the time, discard zones that occur less than 10%
+
+Zone.prop <- as.data.frame(prop.table(xtabs(~Zone, data=TB_cat)))
+zone1 <- droplevels(Zone.prop[Zone.prop$Freq > 0.1,])  
+sel_zone=unique(zone1$Zone)
+
+TB_main <- subset(TB_cat, Zone %in% sel_zone)
+
 
 ### Add in Enviro Data ####
-
-
 tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
 tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
@@ -80,20 +85,19 @@ tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
 tb_nit$Date <- as.character(tb_nit$Date)
 
 tb_nit <- tb_nit %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Characteristic %in% c("Nitrogen")) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID)
-tb_nit$Year <- as.numeric(tb_nit$Year)
 tb_nit$Month <- as.numeric(tb_nit$Month)
+#tb_nit$Year <- as.factor(tb_nit$Year)
 
-#Trim some of the nitrogen data 
-#
+#Trim some of the nitrogen data based on months (want to retain the earlier months) and years(only want the exact same years) 
+main_Year <- unique(TB_main$year)
 
-#test = subset(tb_nit, Month <= max(unique(TB_main$month)),Year>= min(unique(TB_main$year)) & Year <= max(unique(TB_main$year)))
+tb_nit = subset(tb_nit, Month <= max(unique(TB_main$month)) & Year %in% main_Year)
 
+TB_main=data.frame(TB_main[1:200,]) #test it with a shortened df
 
 # Define fuzzy lat/long boundaries ####
-fuzzy_lat = 0.04
-fuzzy_long = 0.04
-
-TB_main =data.frame(TB_main[1:20,]) #test it with a shortened df
+fuzzy_lat = 0.01 # 0.007 = 0.5 miles, 0.0144 = 1 mile
+fuzzy_long = 0.01 # 1 mile 
 
 #selected <- NULL
 nRow=nrow(TB_main)
@@ -126,8 +130,7 @@ for(i in 1:nrow(TB_main))
     nit_long = tb_nit[j,2]
     nit_val = tb_nit[j,6]
     
-    
-    if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+   if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
     {
       print("NA Found")
     }
@@ -158,24 +161,13 @@ for(i in 1:nrow(TB_main))
         m_df <- data.frame(m, stringsAsFactors = FALSE)
         #colnames(m_df) <- c("x1", "x2","X3", "X4", "X5", "X6", "X7")
         
-
         match_matrix[hit_counter,] <- m_df
         hit_counter=hit_counter + 1
         
-    
       }
       
-      #compute pairwise distances between the lat and long from the TB_main loop and between the lats and long from tb_nit selected above
-      # match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
-      # match_matrix <- na.omit(match_matrix)
-      # 
-      # nit_station_match = as.list(seq_len(1))
-      # nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
-      # 
     }
     
-    
-
   }
   match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
   match_matrix <- na.omit(match_matrix)
