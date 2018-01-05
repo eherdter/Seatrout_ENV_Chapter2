@@ -6,12 +6,8 @@ phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaste
 nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
 #nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
 setwd(work_comp)
-# ## Load Packages 
-# * haven-to load sas7bdat daat
-# * dplyr- to do df manipulation
-# * geosphere-  closest lat/long neighbors
-# * cluster- to determine medoids
 
+# LOAD PACKAGES ####
 library(haven) 
 library(dplyr) 
 library(geosphere)
