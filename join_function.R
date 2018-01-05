@@ -74,26 +74,48 @@ tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
 
 #Get Year and Month in the right format to match to the TB_main dataframe. 
 
-tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
-tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
-tb_nit$Date <- as.character(tb_nit$Date)
+# tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
+# tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+# tb_nit$Date <- as.character(tb_nit$Date)
 
-tb_nit <- tb_nit %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Characteristic %in% c("Nitrogen")) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID)
-tb_nit$Month <- as.numeric(tb_nit$Month)
-#tb_nit$Year <- as.factor(tb_nit$Year)
+# tb_nit <- droplevels(tb_nit %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Parameter == "TN_ugl") %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID))
+# tb_nit$Month <- as.numeric(tb_nit$Month)
+
 
 #Trim some of the nitrogen data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
-main_Year <- unique(TB_main$year)
-tb_nit = subset(tb_nit, Month <= max(unique(TB_main$month)) & Year %in% main_Year)
+#main_Year <- unique(TB_main$year)
+#tb_nit = subset(tb_nit, Month <= max(unique(TB_main$month)) & Year %in% main_Year)
 
 
 #BUILD THE JOIN FUNCTION ####
+
+#provide the catch dataset, the environmental data set, the fuzzy lat/long, variable name, and parameter name (as a character)
+#function works for TB and CH for enviro variables nitrogen, phosphorous and salinity
+
+#Param Name for Nitrogen "TN_ugl"
+#Param Name for Phosph   "TP_ugl"
+#Param Name for Salinity "Salinity_ppt"
+#Param Name for Water temp  "TempW_F"
 
 # Define fuzzy lat/long boundaries 
 # fuzzy_lat = 0.01 # 0.007 = 0.5 miles, 0.0144 = 1 mile
 # fuzzy_long = 0.01 # 1 mile 
 
-joinEV <- function(catch, env, fuzzy_lat, fuzzy_long) {
+
+joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
+  
+  #do some selection/cleaning on the enviro data based on the catch data to thin the enviro set out
+  env$SampleDate <- as.factor(env$SampleDate)
+  env <- env %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+  env$Date <- as.character(env$Date)
+  
+  env <- droplevels( env %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Parameter == Param_name) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID))
+  env$Month <- as.numeric(env$Month)
+  
+  #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
+  main_Year <- unique(catch$year)
+  env = subset(env, Month <= max(unique(catch$month)) & Year %in% main_Year)
+  
   
   #selected <- NULL
   nRow=nrow(catch)
@@ -172,30 +194,40 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long) {
     nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
     
     selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
-    selection = do.call(rbind, selected) #do.call bind
+    var_name = do.call(rbind, selected) #do.call bind
     
   }
-  selection
+  var_name
   
-}
+} 
+# END FUNCTION #### 
+
+
 
 #TEST FUNCTION ####
 #with a shortened dataframe and different fuzzy coordinate boundaries
 
-TB_shrt=data.frame(TB_main[1:200,])
-TB_shrt2 = data.frame(TB_main[1:500,])
+TB_shrt=data.frame(TB_main[1:10,])
+TB_shrt2 = data.frame(TB_main[1:5000,])
 
-# joinEV(TB_shrt, tb_nit, 0.01, 0.01) # 18 matches 
-# joinEV(TB_shrt, tb_nit, 0.015, 0.015) # 111 matches
-# joinEV(TB_shrt, tb_nit, 0.017, 0.017) # 111 matches
+# joinEV(TB_shrt, tb_nit, 0.01, 0.01, nitrogen) # 18 matches 
+# joinEV(TB_shrt, tb_nit, 0.015, 0.015, nitrogen) # 111 matches
+# joinEV(TB_shrt, tb_nit, 0.017, 0.017, nitrogen) # 111 matches
 
-# joinEV(TB_shrt2, tb_nit, 0.01, 0.01) # 42 matches 
-# joinEV(TB_shrt, tb_nit, 0.015, 0.015) # ~ 277.5
-# joinEV(TB_shrt, tb_nit, 0.017, 0.017) # 
-
-
+# joinEV(TB_shrt2, tb_nit, 0.01, 0.01, nitrogen) # 42 matches, 405 seconds
+# joinEV(TB_shrt2, tb_nit, 0.015, 0.015, nitrogen) # 169 matches, 409.16 seconds
+# joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen) # 181, 405.21 seconds
 
 
+#TB_shrt2 = data.frame(TB_main[1:5000,])
+#joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen)
+
+#Record system run time 
+library(tictoc)
+
+tic()
+joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen)
+toc()
 
 
 
@@ -302,6 +334,12 @@ for(i in 1:nrow(TB_main))
 
 }
 selection
+
+library(tictoc)
+
+tic()
+print("test")
+toc()
 
 
  
