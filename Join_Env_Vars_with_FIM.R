@@ -5,19 +5,25 @@
 
 # SET WORKING DIRECTORY ####
 #must change working directory for data when working on personal vs work computer
-personal_comp = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
+rm(list=ls())
+personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
-nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients"
+nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
+nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
+salinity = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Salinity"
+watertemp = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/WaterTemp"
 
 #setwd(personal_comp)
 setwd(work_comp)
 
-# SET PACKAGES ####
-library(haven) #to load sas
-library(dplyr) # to do df manipulation
+# LOAD PACKAGES ####
+library(haven) 
+library(dplyr) 
+library(geosphere)
+library(cluster)
 
-# IMPORT DATA SETS ####
+# ABOUT- IMPORT DATA SETS ####
 # These data sets were produced using the spp_comb_5_13_EG_2bays_yoy_2015_EHedits.sas program which is stored in my scratch folder
 # For more description see Delta_Method_for_Producing R script 
 
@@ -37,6 +43,7 @@ library(dplyr) # to do df manipulation
 # observations and not drop any that maybe do not have associated enviro variables or add observations of enviro variables to referecence numbers
 # Reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
 
+#IMPORT AP####
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 #ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -48,6 +55,7 @@ ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
 ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
 ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
 
+#IMPORT CK ####
 ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
 #ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -57,6 +65,10 @@ ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat"))
 ck_hyd <- ck_hyd[!duplicated(ck_hyd$Reference),]
 ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference")
 ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
+
+#TB ####
+
+# Import####
 
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
 #tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -68,6 +80,8 @@ tb_hyd <- tb_hyd[!duplicated(tb_hyd$Reference),]
 tb <- left_join(tb, tb_phys, by="Reference") %>% left_join(tb_hyd, by="Reference")
 tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabetically 
 
+
+#IMPORT CH ####
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 #ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -78,6 +92,7 @@ ch_hyd <- ch_hyd[!duplicated(ch_hyd$Reference),]
 ch <- left_join(ch, ch_phys, by="Reference") %>% left_join(ch_hyd, by="Reference")
 ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabetically 
 
+#IMPORT IR ####
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
 #ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -88,6 +103,7 @@ ir_hyd <- ir_hyd[!duplicated(ir_hyd$Reference),]
 ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference")
 ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
 
+#IMPORT JX ####
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
 #jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -98,6 +114,7 @@ jx_hyd <- jx_hyd[!duplicated(jx_hyd$Reference),]
 jx <- left_join(jx, jx_phys, by="Reference") %>% left_join(jx_hyd, by="Reference")
 jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabetically 
 
+#JOIN ALL CATCH DATA ####
 full <- rbind(ap, ck, tb, ch, ir, jx)
 
 ## ADD IN Enviro Data ####
