@@ -4,10 +4,11 @@ personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Eli
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
 nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
-nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
+#nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
 salinity = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Salinity"
 watertemp = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/WaterTemp"
-setwd(personal_comp)
+setwd(work_comp)
+out =   "U:/PhD_projectfiles/Exported_R_Datafiles"
 
 # LOAD PACKAGES ####
 library(haven) 
@@ -103,6 +104,18 @@ tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 # Define fuzzy lat/long boundaries 
 # fuzzy_lat = 0.01 # 0.007 = 0.5 miles, 0.0144 = 1 mile
 # fuzzy_long = 0.01 # 1 mile 
+
+# #do some selection/cleaning on the tb_nitiro data based on the TB_main data to thin the tb_nitiro set out
+# tb_nit$SampleDate <- as.factor(tb_nit$SampleDate)
+# tb_nit <- tb_nit %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+# tb_nit$Date <- as.character(tb_nit$Date)
+# 
+# tb_nit <- droplevels( tb_nit %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Parameter == Param_name) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID))
+# tb_nit$Month <- as.numeric(tb_nit$Month)
+# 
+# #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the TB_main dataset) 
+# main_Year <- unique(TB_main$year)
+# tb_nit = subset(tb_nit, Month <= max(unique(TB_main$month)) & Year %in% main_Year)
 
 
 joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
@@ -212,28 +225,64 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
 TB_shrt=data.frame(TB_main[1:10,])
 TB_shrt2 = data.frame(TB_main[1:5000,])
 
-# joinEV(TB_shrt, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 18 matches 
-# joinEV(TB_shrt, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 111 matches
-# joinEV(TB_shrt, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 111 matches
+# TB_shrt=data.frame(TB_main[1:10,])
+# joinEV(TB_shrt, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") #0 matches 
+# joinEV(TB_shrt, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 10 matches
+# joinEV(TB_shrt, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 10 matches
 
-# joinEV(TB_shrt2, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 42 matches, 405 seconds
-# joinEV(TB_shrt2, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 169 matches, 409.16 seconds
-# joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 181, 405.21 seconds
+# TB_shrt2 = data.frame(TB_main[1:50,])
+# joinEV(TB_shrt2, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 3 matches, 1.61 seconds
+# joinEV(TB_shrt2, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 20 matches, 1.75 seconds
+# joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 23, 1.71 seconds
+
+# TB_shrt3 = data.frame(TB_main[1:200,])
+# nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 18 matches, 9.8 seconds
+# nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 44 matches, 10.31 seconds
+# nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 59 matches, 10.23 seconds
+
+# TB_shrt4 = data.frame(TB_main[1:500,])
+# nit_shrt4 <- joinEV(TB_shrt4, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 42, 44.67 seconds
+# nit_shrt4 <- joinEV(TB_shrt4, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 102 matches, 45.3 seconds
+# nit_shrt4 <- joinEV(TB_shrt4, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 129, 45.94 seconds
+
+# TB_shrt5 = data.frame(TB_main[1:2000,])
+# joinEV(TB_shrt5, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 200, 496.6 seconds
+# joinEV(TB_shrt5, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 169 matches, 45.3 seconds
+# joinEV(TB_shrt5, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 181, 45.94 seconds
 
 
-#TB_shrt2 = data.frame(TB_main[1:5000,])
-#joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen)
+#TB_shrt5 = data.frame(TB_main[1:3200,]) #no years after 99 
+#joinEV(TB_shrt5, tb_nit, 0.01, 0.01, nitrogen) #265 matches, 1049.66 seconds 
 
-#Record system run time 
-library(tictoc)
+#TB_test =  data.frame(TB_main[3300:4000,]) # 99,00,01 years
+#nit_test <- joinEV(TB_test, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") #72 matches, 73.1 seconds
+
+#TB_test2 = data.frame(TB_main[4000:5000,]) # 01,02,03,04,05 #89 matches, 182.97 seconds
+
+
+TB_beg=data.frame(TB_main[1:3000,])
+TB_mid = data.frame(TB_main[3001:6000,])
+TB_end = data.frame(TB_main[6001:8580,])
 
 tic()
-nit_full <- joinEV(TB_main, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl")
+beg <- joinEV(TB_beg, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #614, 1015.15
 toc()
 
-write.csv(nit_full, "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes/TB_nit_join.csv")
+tic()
+mid<- joinEV(TB_mid, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #690, 1239.75
+toc()
 
+tic()
+end<- joinEV(TB_end, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #715, 944.97
+toc()
 
+nit_full <- rbind(beg, mid, end)
+#write.csv(nit_full, "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes/TB_nit_join.csv")
+write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join.csv", sep="/"))
+
+tic()
+full <- joinEV(TB_main,tb_nit, 0.017, 0.017, nitrogen, "TN_ugl" )
+toc()
 
 
 # # WORKS ####
