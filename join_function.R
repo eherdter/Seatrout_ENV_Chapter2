@@ -102,7 +102,7 @@ tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 #Param Name for Water temp  "TempW_F"
 
 # Define fuzzy lat/long boundaries 
-# fuzzy_lat = 0.01 # 0.007 = 0.5 miles, 0.0144 = 1 mile
+# fuzzy_lat = 0.01 # 0.007 = 0.5 miles, 0.0144 = 1 mile, 0.0288 = 2 miles
 # fuzzy_long = 0.01 # 1 mile 
 
 # #do some selection/cleaning on the tb_nitiro data based on the TB_main data to thin the tb_nitiro set out
@@ -234,11 +234,14 @@ TB_shrt2 = data.frame(TB_main[1:5000,])
 # joinEV(TB_shrt2, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 3 matches, 1.61 seconds
 # joinEV(TB_shrt2, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 20 matches, 1.75 seconds
 # joinEV(TB_shrt2, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 23, 1.71 seconds
+# joinEV(TB_shrt2, tb_nit, 0.0216, 0.0216, nitrogen, "TN_ugl") # 26, 1.71 seconds
 
 # TB_shrt3 = data.frame(TB_main[1:200,])
 # nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 18 matches, 9.8 seconds
 # nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.015, 0.015, nitrogen, "TN_ugl") # 44 matches, 10.31 seconds
 # nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") # 59 matches, 10.23 seconds
+# nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.0216, 0.0216, nitrogen, "TN_ugl") # 71 matches, 10.23 seconds
+# nit_shrt3 <- joinEV(TB_shrt3, tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl") # 101 matches, 10.23 seconds
 
 # TB_shrt4 = data.frame(TB_main[1:500,])
 # nit_shrt4 <- joinEV(TB_shrt4, tb_nit, 0.01, 0.01, nitrogen, "TN_ugl") # 42, 44.67 seconds
@@ -259,30 +262,40 @@ TB_shrt2 = data.frame(TB_main[1:5000,])
 
 #TB_test2 = data.frame(TB_main[4000:5000,]) # 01,02,03,04,05 #89 matches, 182.97 seconds
 
+#Shortened datasets
+# TB_beg=data.frame(TB_main[1:3000,])
+# TB_mid = data.frame(TB_main[3001:6000,])
+# TB_end = data.frame(TB_main[6001:8580,])
+# 
+# tic()
+# beg <- joinEV(TB_beg, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #614, 1015.15
+# toc()
+# 
+# tic()
+# mid<- joinEV(TB_mid, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #690, 1239.75
+# toc()
+# 
+# tic()
+# end<- joinEV(TB_end, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #715, 944.97
+# toc()
+# 
+# nit_full <- rbind(beg, mid, end)
+# #write.csv(nit_full, "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes/TB_nit_join.csv")
+# write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join.csv", sep="/"))
 
-TB_beg=data.frame(TB_main[1:3000,])
-TB_mid = data.frame(TB_main[3001:6000,])
-TB_end = data.frame(TB_main[6001:8580,])
+
+#Full dataset
+tic()
+full <- joinEV(TB_main,tb_nit, 0.017, 0.017, nitrogen, "TN_ugl" ) #2019, 9610.85 seconds
+toc()
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_017.csv", sep="/"))
 
 tic()
-beg <- joinEV(TB_beg, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #614, 1015.15
+full <- joinEV(TB_main,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) 
 toc()
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/"))
 
-tic()
-mid<- joinEV(TB_mid, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #690, 1239.75
-toc()
 
-tic()
-end<- joinEV(TB_end, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl") #715, 944.97
-toc()
-
-nit_full <- rbind(beg, mid, end)
-#write.csv(nit_full, "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes/TB_nit_join.csv")
-write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join.csv", sep="/"))
-
-tic()
-full <- joinEV(TB_main,tb_nit, 0.017, 0.017, nitrogen, "TN_ugl" )
-toc()
 
 
 # # WORKS ####
