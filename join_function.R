@@ -15,6 +15,7 @@ library(haven)
 library(dplyr) 
 library(geosphere)
 library(cluster)
+library(tictoc)
 #
 # LOAD AND CLEAN DATA  ####
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
@@ -291,11 +292,14 @@ toc()
 write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_017.csv", sep="/"))
 
 tic()
-full <- joinEV(TB_main,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) 
+full <- joinEV(TB_main,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) #3773, 10166.69
 toc()
-write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/"))
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/")) 
 
-
+tic()
+full <- joinEV(TB_main,tb_nit, 0.0432, 0.0432, nitrogen, "TN_ugl" ) #4963, 10761.23
+toc()
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/")) 
 
 
 # # WORKS ####
