@@ -3,10 +3,12 @@ rm(list=ls())
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
-nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
+nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients"
 #nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
 salinity = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Salinity"
+salinity = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Salinity"
 watertemp = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/WaterTemp"
+watertemp = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/WaterTemp"
 setwd(work_comp)
 out =   "U:/PhD_projectfiles/Exported_R_Datafiles"
 
@@ -66,29 +68,29 @@ TB_main <- subset(TB_cat,!duplicated(Reference) & Zone %in% sel_zone)
 
 ### ADD IN ENVIRO DATA ####
 #add in nitrogen
-tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
 
 #add in phosphorous
-tb_ph1 <- read.csv(paste(nutrient_dat, "Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_ph2 <- read.csv(paste(nutrient_dat, "Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_ph3 <- read.csv(paste(nutrient_dat, "Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_ph4 <- read.csv(paste(nutrient_dat, "Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph1 <- read.csv(paste(nutrient_dat, "Phosphorous/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_ph2 <- read.csv(paste(nutrient_dat, "Phosphorous/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph3 <- read.csv(paste(nutrient_dat, "Phosphorous/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph4 <- read.csv(paste(nutrient_dat, "Phosphorous/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_ph <- rbind(tb_ph1, tb_ph2, tb_ph3, tb_ph4)
 
 #add in salinity
-tb_sal1 <- read.csv(paste(salinity, "Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
-tb_sal2 <- read.csv(paste(salinity, "Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal3 <- read.csv(paste(salinity, "Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal4 <- read.csv(paste(salinity, "Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal1 <- read.csv(paste(salinity, "TB/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
+tb_sal2 <- read.csv(paste(salinity, "TB/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal3 <- read.csv(paste(salinity, "TB/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal4 <- read.csv(paste(salinity, "TB/Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
 tb_sal <- rbind(tb_sal1, tb_sal2, tb_sal3, tb_sal4)
 
 #add in water temp
-tb_wt1 <- read.csv(paste(watertemp, "Water_temperature_Hillsborough_Bay.csv", sep="/"))
-tb_wt2 <- read.csv(paste(watertemp, "Water_temperature_Lower_Tampa_Bay.csv", sep="/"))
-tb_wt3 <- read.csv(paste(watertemp, "Water_temperature_Middle_Tampa_Bay.csv", sep="/"))
+tb_wt1 <- read.csv(paste(watertemp, "TB/Water_temperature_Hillsborough_Bay.csv", sep="/"))
+tb_wt2 <- read.csv(paste(watertemp, "TB/Water_temperature_Lower_Tampa_Bay.csv", sep="/"))
+tb_wt3 <- read.csv(paste(watertemp, "TB/Water_temperature_Middle_Tampa_Bay.csv", sep="/"))
 tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 
 
@@ -300,6 +302,52 @@ tic()
 full <- joinEV(TB_main,tb_nit, 0.0432, 0.0432, nitrogen, "TN_ugl" ) #4963, 10761.23
 toc()
 write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/")) 
+
+tic()
+full1 <- joinEV(TB_main,tb_ph, 0.017, 0.017, phos, "TP_ugl" ) 
+toc()
+write.csv(full1, paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_017.csv", sep="/"))
+
+tic()
+full2 <- joinEV(TB_main,tb_ph, 0.0288, 0.0288, phos, "TP_ugl" ) 
+toc()
+write.csv(full2, paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_028.csv", sep="/"))
+
+tic()
+full3 <- joinEV(TB_main,tb_ph, 0.0432, 0.0432, phos, "TP_ugl" )
+toc()
+write.csv(full3, paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_043.csv", sep="/"))
+
+tic()
+full1 <- joinEV(TB_main,tb_sal, 0.017, 0.017, sal, "Salinity_ppt" ) 
+toc()
+write.csv(full1, paste(out, "Seatrout_ENV_Chapter2/TB_sal_join_017.csv", sep="/"))
+
+tic()
+full2 <- joinEV(TB_main,tb_sal, 0.0288, 0.0288, sal, "Salinity_ppt" ) 
+toc()
+write.csv(full2, paste(out, "Seatrout_ENV_Chapter2/TB_sal_join_028.csv", sep="/"))
+
+tic()
+full3 <- joinEV(TB_main,tb_sal, 0.0432, 0.0432, sal, "Salinity_ppt" )
+toc()
+write.csv(full3, paste(out, "Seatrout_ENV_Chapter2/TB_sal_join_043.csv", sep="/"))
+
+tic()
+full1 <- joinEV(TB_main,tb_wt, 0.017, 0.017, sal, "TempW_F" ) 
+toc()
+write.csv(full1, paste(out, "Seatrout_ENV_Chapter2/TB_wt_join_017.csv", sep="/"))
+
+tic()
+full2 <- joinEV(TB_main,tb_wt, 0.0288, 0.0288, sal, "TempW_F" ) 
+toc()
+write.csv(full2, paste(out, "Seatrout_ENV_Chapter2/TB_wt_join_028.csv", sep="/"))
+
+tic()
+full3 <- joinEV(TB_main,tb_wt, 0.0432, 0.0432, sal, "TempW_F" )
+toc()
+write.csv(full3, paste(out, "Seatrout_ENV_Chapter2/TB_wt_join_043.csv", sep="/"))
+
 
 
 # # WORKS ####
