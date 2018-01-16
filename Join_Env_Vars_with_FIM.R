@@ -87,13 +87,14 @@ ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabe
 
 # import catch ####
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
-tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-#tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-tb_phys$Reference <- as.character(tb_phys$Reference)
 tb_hyd <- subset(read_sas("tb_yoy_cn_hyd.sas7bdat")) 
-#Also duplicated References in tb_hyd
 tb_hyd <- tb_hyd[!duplicated(tb_hyd$Reference),]
-tb <- left_join(tb, tb_phys, by="Reference") %>% left_join(tb_hyd, by="Reference")
+#tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys$Reference <- as.character(tb_phys$Reference)
+
+tb <- left_join(tb, tb_hyd, by="Reference")
+tb <- left_join(tb, tb_phys, by="Reference")
 tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabetically 
 
 # fill missing lat/long ####
@@ -146,16 +147,16 @@ tb_maxT <- read.csv(paste(enviro_data, "AirTemp/Max_Temp_CD3.csv", sep="/"), ski
 tb_minT <- read.csv(paste(enviro_data, "AirTemp/Min_Temp_CD3.csv", sep="/"),skip=4)
 
 #add in nitrogen
-tb_nit1 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_nit2 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit3 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit1 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_nit2 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit3 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
 
 #add in phosphorous
-tb_ph1 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_ph2 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_ph3 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_ph4 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph1 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_ph2 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph3 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph4 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_ph <- rbind(tb_ph1, tb_ph2, tb_ph3, tb_ph4)
 
 # add in Palmer Z
@@ -168,14 +169,14 @@ tb_rf3 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_08_17.csv", sep="/")
 tb_rf < - rbind(tb_rf1, tb_rf2, tb_rf3)
 
 #add in salinity
-tb_sal1 <- read.csv(paste(enviro_data, "Salinity/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
-tb_sal2 <- read.csv(paste(enviro_data, "Salinity/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal3 <- read.csv(paste(enviro_data, "Salinity/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal4 <- read.csv(paste(enviro_data, "Salinity/Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal1 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
+tb_sal2 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal3 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal4 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
 tb_sal <- rbind(tb_sal1, tb_sal2, tb_sal3, tb_sal4)
 
 #add in seagrass cover
-tb_sg <- read.csv(paste(enviro_data, "Seagrass/SWFWMD_Seagrass_TB.csv", sep="/"))
+tb_sg <- read.csv(paste(enviro_data, "SeagrassCover/SWFWMD_Seagrass_TB.csv", sep="/"))
 
 #add in streamflow
 tb_AR <- read.csv(paste(enviro_data, "Streamflow/TB/Alafia_River.csv", sep="/"), skip=28)
@@ -183,13 +184,15 @@ tb_HR <- read.csv(paste(enviro_data, "Streamflow/TB/Hillsborough_river.csv", sep
 tb_LMR <- read.csv(paste(enviro_data, "Streamflow/TB/Little.Manatee_River.csv", sep="/"), skip=28)
 
 #add in water temp
-tb_wt1 <- read.csv(paste(enviro_data, "WaterTemp/Water_temperature_Hillsborough_Bay.csv", sep="/"))
-tb_wt2 <- read.csv(paste(enviro_data, "WaterTemp/Water_temperature_Lower_Tampa_Bay.csv", sep="/"))
-tb_wt3 <- read.csv(paste(enviro_data, "WaterTemp/Water_temperature_Middle_Tampa_Bay.csv", sep="/"))
+tb_wt1 <- read.csv(paste(enviro_data, "WaterTemp/TB/Water_temperature_Hillsborough_Bay.csv", sep="/"))
+tb_wt2 <- read.csv(paste(enviro_data, "WaterTemp/TB/Water_temperature_Lower_Tampa_Bay.csv", sep="/"))
+tb_wt3 <- read.csv(paste(enviro_data, "WaterTemp/TB/Water_temperature_Middle_Tampa_Bay.csv", sep="/"))
 tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 
 
 # build joinEV function ####
+
+# THIS WORKS FOR TB_MAIN column references when PHYSICAL DATASET IS INCLUDED
 
 #provide the catch dataset, the environmental data set, the fuzzy lat/long, variable name, and parameter name (as a character)
 #function works for TB and CH for enviro variables nitrogen, phosphorous and salinity
@@ -234,12 +237,12 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
     
     #define some variables
     filler_dist = 9999
-    catch_year=catch[i,59]
+    catch_year=catch[i,61]
     catch_month=catch[i,30]
-    catch_lat=catch[i,63]
-    catch_long=catch[i, 62]
+    catch_lat=catch[i,65]
+    catch_long=catch[i, 64]
     catch_ref = catch[i,41]
-    TB_cor = as.numeric(c(catch[i,62], catch[i,63]))
+    TB_cor = as.numeric(c(catch[i,64], catch[i,65]))
     
     for(j in 1:nrow(env))
     {
@@ -302,6 +305,7 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
   var_name
   
 } 
+
 # END FUNCTION
 
 #build joinCD function ####
@@ -346,10 +350,17 @@ cleanSF <- function(sf, name){
 
 # join nitrogen, phosphorous, salinity, water temp ####
 # tic()
-# nit_full <- joinEV(TB_main, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl")
+TB_shrt <- TB_main[1:5,]
+nit_full <- joinEV(TB_shrt, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl")
 # toc()
 # write.csv(nit_full, paste(out, "TB_nit_join.csv", sep="/"))
-# 
+
+tic()
+full <- joinEV(TB_main,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) #3773, 10166.69
+toc()
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/")) 
+
+
 # tic()
 # ph_full <- joinEV(TB_main, tb_ph, 0.017, 0.017, phosphorous, "TP_ugl")
 # toc()
@@ -373,12 +384,7 @@ TB_phos <- read.csv(paste(out, "TB_ph_join_0432.csv", sep="/"), header=T) %>% se
 colnames(TB_phos) <- c("Reference", "Phos_val")
 
 
-
-
-
 test <-  left_join(TB_main, TB_nit, by="Reference")
-
-
 
 
 # merge airtemp and palmerZ (climate zones-CD) ####
@@ -410,14 +416,16 @@ TB_new4 <- left_join(TB_new3, tb_av_LMR, by =c("year", "month"))
 
 #import catch ####
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
-ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-#ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ch_phys$Reference <- as.character(ch_phys$Reference)
 ch_hyd <- subset(read_sas("ch_yoy_cn_hyd.sas7bdat")) 
-#Also duplicated References in ch_hyd
 ch_hyd <- ch_hyd[!duplicated(ch_hyd$Reference),]
-ch <- left_join(ch, ch_phys, by="Reference") %>% left_join(ch_hyd, by="Reference")
+#ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ch_phys$Reference <- as.character(ch_phys$Reference)
+
+ch <- left_join(ch, ch_hyd, by="Reference")
+ch <- left_join(ch, ch_phys, by="Reference")
 ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabetically 
+
 
 # fill missing lat/long ####
 #Add in missing lat and long based on the Zone. I.e. if lat and long is missing then use lat and long for similar zone. This is necessary to be able to match any environmental data based on time and space. 
@@ -436,10 +444,10 @@ ch_maxT <- read.csv(paste(enviro_data, "AirTemp/Max_Temp_CD5.csv", sep="/"), ski
 ch_minT <- read.csv(paste(enviro_data, "AirTemp/Min_Temp_CD5.csv", sep="/"), skip=4)
 
 #add in nitrogen
-ch_nit <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_CH.csv", sep="/"))
+ch_nit <- read.csv(paste(enviro_data, "Nutrients/Nitrogen/Nitrogen_CH.csv", sep="/"))
 
 #add in phosphorous
-ch_ph <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_CH.csv", sep="/"))
+ch_ph <- read.csv(paste(enviro_data, "Nutrients/Phosphorous/Phosphorous_CH.csv", sep="/"))
 
 # add in Palmer Z
 ch_PZ <- read.csv(paste(enviro_data,"PalmerZ/PalmerZ_CD5.csv", sep="/" ),skip=3)
@@ -448,25 +456,110 @@ ch_PZ <- read.csv(paste(enviro_data,"PalmerZ/PalmerZ_CD5.csv", sep="/" ),skip=3)
 ch_rf <- read.csv(paste(enviro_data, "Rainfall/CH_Rainfall_89_17.csv", sep="/"))
 
 #add in salinity
-ch_sal <- read.csv(paste(enviro_data, "Salinity/Salinity_CharlotteHarbor_MultipleSources.csv", sep="/"))
+ch_sal <- read.csv(paste(enviro_data, "Salinity/CH/Salinity_CharlotteHarbor_MultipleSources.csv", sep="/"))
 
 #add in Seagrass Cover
-ch_sg <- read.csv(paste(enviro_data, "Seagrass/Seagrass_Cover_CharlotteHarbor.csv", sep="/"))
+ch_sg <- read.csv(paste(enviro_data, "SeagrassCover/Seagrass_Cover_CharlotteHarbor.csv", sep="/"))
 
 #add in streamflow
-ch_CaloR <- read.csv(paste(enviro_data, "Streamflow/CH/Caloosagatchee_River.csv", sep="/"), skip=28)
+ch_CaloR <- read.csv(paste(enviro_data, "Streamflow/CH/Caloosahatchee_River.csv", sep="/"), skip=28)
 ch_MyakR <- read.csv(paste(enviro_data, "Streamflow/CH/Myakka_River.csv", sep="/"), skip=28)
 ch_PeaR <- read.csv(paste(enviro_data, "Streamflow/CH/Peace_River.csv", sep="/"), skip=28)
 ch_ShellC <- read.csv(paste(enviro_data, "Streamflow/CH/Shell_Creek.csv", sep="/"), skip=28)
 
 #add in water temp
-ch_wt <- read.csv(paste(enviro_data, "WaterTemp/WaterTemp_CH.csv", sep="/"))
+ch_wt <- read.csv(paste(enviro_data, "WaterTemp/CH/WaterTemp_CH.csv", sep="/"))
+
 
 # join nitrogen, phosphorous, salinity, water temp ####
-# tic()
-# nit_full <- joinEV(CH_main, ch_nit, 0.017, 0.017, nitrogen, "TN_ugl")
-# toc()
-# write.csv(nit_full, paste(out, "CH_nit_join.csv", sep="/"))
+
+#PROBLEM- there are years in CH_main that are not present in ch_nit so the function is failing
+# Need to fix this..... 
+#PROBLEM- additionally, there are multiple readings in the ch_nit for a station, year and month (i.e. a station took two measurements within the same month and year)
+# which will cause the reference value to be duplicated so that it records both nitrogen measurements.
+# Not sure the best way to deal with this so will just produce it and then select unique reference values afterward.
+
+#nitrogen
+tic()
+nit_full <- joinEV(CH_main, ch_nit, 0.017, 0.017, nitrogen, "TN_ugl")
+toc()
+nit_full <- subset(nit_full, !duplicated(V3)) #V3=reference
+write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_017.csv", sep="/"))
+
+tic()
+nit_full <- joinEV(CH_main, ch_nit, 0.0288, 0.0288, nitrogen, "TN_ugl")
+toc()
+nit_full <- subset(nit_full, !duplicated(V3))
+write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_028.csv", sep="/"))
+
+tic()
+nit_full <- joinEV(CH_main,ch_nit, 0.0432, 0.0432, nitrogen, "TN_ugl" ) 
+toc()
+nit_full <- subset(nit_full, !duplicated(V3))
+write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043.csv", sep="/")) 
+
+#phos
+tic()
+pho_full <- joinEV(CH_main, ch_ph, 0.017, 0.017, phosphorous, "TP_ugl")
+toc()
+pho_full <- subset(pho_full, !duplicated(V3)) #V3=reference
+write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_017.csv", sep="/"))
+
+tic()
+pho_full <- joinEV(CH_main, ch_ph, 0.0288, 0.0288, phosphorous, "TP_ugl")
+toc()
+pho_full <- subset(pho_full, !duplicated(V3))
+write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_028.csv", sep="/"))
+
+tic()
+pho_full <- joinEV(CH_main,ch_ph, 0.0432, 0.0432, phosphorous, "TP_ugl" ) 
+toc()
+pho_full <- subset(pho_full, !duplicated(V3))
+write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_043.csv", sep="/")) 
+
+#salinity
+tic()
+sal_full <- joinEV(CH_main, ch_sal, 0.017, 0.017, salinity, "Salinity_ppt")
+toc()
+sal_full <- subset(sal_full, !duplicated(V3)) #V3=reference
+write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_017.csv", sep="/"))
+
+tic()
+sal_full <- joinEV(CH_main, ch_sal, 0.0288, 0.0288, salinity, "Salinity_ppt")
+toc()
+sal_full <- subset(sal_full, !duplicated(V3))
+write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_028.csv", sep="/"))
+
+tic()
+sal_full <- joinEV(CH_main,ch_sal, 0.0432, 0.0432, salinity, "Salinity_ppt" ) 
+toc()
+sal_full <- subset(sal_full, !duplicated(V3))
+write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_043.csv", sep="/")) 
+
+#watertemp
+tic()
+wt_full <- joinEV(CH_main, ch_wt, 0.017, 0.017, watertemp, "TempW_F")
+toc()
+wt_full <- subset(wt_full, !duplicated(V3)) #V3=reference
+write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_017.csv", sep="/"))
+
+tic()
+wt_full <- joinEV(CH_main, ch_wt, 0.0288, 0.0288,  watertemp, "TempW_F")
+toc()
+wt_full <- subset(wt_full, !duplicated(V3))
+write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_028.csv", sep="/"))
+
+tic()
+wt_full <- joinEV(CH_main,ch_wt, 0.0432, 0.0432,  watertemp, "TempW_F" ) 
+toc()
+wt_full <- subset(wt_full, !duplicated(V3))
+write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_043.csv", sep="/")) 
+
+
+
+
+
+
 # 
 # tic()
 # ph_full <- joinEV(CH_main, ch_ph, 0.017, 0.017, phosphorous, "TP_ugl")
@@ -485,7 +578,6 @@ ch_wt <- read.csv(paste(enviro_data, "WaterTemp/WaterTemp_CH.csv", sep="/"))
 
 # Join airtemp and palmerZ (climate zones-CD) ####
 #where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
-
 
 
 # IR ####
