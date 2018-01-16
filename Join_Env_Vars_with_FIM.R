@@ -6,21 +6,31 @@
 # SET WORKING DIRECTORY ####
 #must change working directory for data when working on personal vs work computer
 rm(list=ls())
+
+enviro_data = "U:/PhD_projectfiles/Raw_Data/Environmental_Data"
+enviro_data = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData"
+
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
 work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
-nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
-nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
-salinity = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Salinity"
-watertemp = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/WaterTemp"
-rainfall = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Rainfall"
-streamflow = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Streamflow"
-airtemp = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/AirTemp"
-palmerz = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/PalmerZ"
-seagrass = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/SeagrassCover"
-out =   "U:/PhD_projectfiles/Exported_R_Datafiles"
 
-#setwd(personal_comp)
+# nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
+# nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
+# salinity = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Salinity"
+# watertemp = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/WaterTemp"
+# rainfall = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Rainfall"
+# streamflow = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Streamflow"
+# airtemp = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/AirTemp"
+# airtemp = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/AirTemp"
+# palmerz = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/PalmerZ"
+# palmerz = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/PalmerZ"
+# seagrass = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/SeagrassCover"
+# 
+
+out =   "U:/PhD_projectfiles/Exported_R_Datafiles"
+out =   "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes"
+
+setwd(personal_comp)
 setwd(work_comp)
 
 # LOAD PACKAGES ####
@@ -76,10 +86,9 @@ ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabe
 #TB ####
 
 # import catch ####
-
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
-#tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+#tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 tb_phys$Reference <- as.character(tb_phys$Reference)
 tb_hyd <- subset(read_sas("tb_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in tb_hyd
@@ -87,10 +96,8 @@ tb_hyd <- tb_hyd[!duplicated(tb_hyd$Reference),]
 tb <- left_join(tb, tb_phys, by="Reference") %>% left_join(tb_hyd, by="Reference")
 tb <- tb %>% select(noquote(order(colnames(tb))))  #reorders the columns alphabetically 
 
-
-# clean catch ####
+# fill missing lat/long ####
 #Add in missing lat and long based on the Zone. I.e. if lat and long is missing then use lat and long for similar zone. This is necessary to be able to match any environmental data based on time and space. 
-
 unique(tb$Zone)
 unique(subset(tb, is.na(Longitude))$Zone) #assume if its missing Long then its also missing Lat
 
@@ -111,73 +118,78 @@ sum(is.na(tb_medE))
 tb_medM <- matrix(pam(subset(tb, Zone=="M" & !is.na(Longitude) & !is.na(Latitude), select=c("Longitude", "Latitude")),1)$medoids)
 sum(is.na(tb_medM))
 
-#Apply zone-specific medoids to missing Long and Lat. Do this with new varaibles NewLong and NewLat. 
+TB_cat <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
+
+#tidy catch ####
+
 #Format year to match the year in tb_nit. 
 #Then trim TB_main to select the most important zones that occur at least 10% of the time. Also, select only unique
 # Reference values for the dataset moving through the function to minimize computation. 
 
-TB_cat <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
-TB_cat <- TB_cat %>% mutate(year = substr(as.character(TB_cat$year),3,4)) #make year format match that of the coming nitrogen data
+tidy_catch = function(catch) {
+  catch <- catch %>% mutate(year = substr(as.character(catch$year),3,4)) #make year format match that of the coming nitrogen data
+  catch$year <- as.factor(catch$year)
+  catch$month <- as.numeric(catch$month)
+  catch <- data.frame(catch)
+  Zone.prop <- as.data.frame(prop.table(xtabs(~Zone, data=catch)))
+  zone1 <- droplevels(Zone.prop[Zone.prop$Freq > 0.1,])  
+  sel_zone=unique(zone1$Zone)
+  catch_main <- subset(catch,!duplicated(Reference) & Zone %in% sel_zone)
+  catch_main
+}
 
-TB_cat$year <- as.factor(TB_cat$year)
-TB_cat$month <- as.numeric(TB_cat$month)
-TB_cat <- data.frame(TB_cat)
-Zone.prop <- as.data.frame(prop.table(xtabs(~Zone, data=TB_cat)))
-zone1 <- droplevels(Zone.prop[Zone.prop$Freq > 0.1,])  
-sel_zone=unique(zone1$Zone)
-
-TB_main <- subset(TB_cat,!duplicated(Reference) & Zone %in% sel_zone)
+TB_main <- tidy_catch(TB_cat)
 
 # import environment #### 
 #add in air temp
-tb_maxT <- read.csv(paste(airtemp, "Max_Temp_CD3.csv", sep="/"), skip=4)
-tb_minT <- read.csv(paste(airtemp, "Min_Temp_CD3.csv", sep="/"),skip=4)
+tb_maxT <- read.csv(paste(enviro_data, "AirTemp/Max_Temp_CD3.csv", sep="/"), skip=4)
+tb_minT <- read.csv(paste(enviro_data, "AirTemp/Min_Temp_CD3.csv", sep="/"),skip=4)
 
 #add in nitrogen
-tb_nit1 <- read.csv(paste(nutrient_dat, "Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_nit2 <- read.csv(paste(nutrient_dat, "Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_nit3 <- read.csv(paste(nutrient_dat, "Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit1 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_nit2 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_Middle_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_nit3 <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_nit <- rbind(tb_nit1, tb_nit2, tb_nit3)
 
 #add in phosphorous
-tb_ph1 <- read.csv(paste(nutrient_dat, "Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
-tb_ph2 <- read.csv(paste(nutrient_dat, "Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_ph3 <- read.csv(paste(nutrient_dat, "Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
-tb_ph4 <- read.csv(paste(nutrient_dat, "Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph1 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Hillsborough_Bay_EPC_Routine.csv", sep="/"))
+tb_ph2 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Lower_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph3 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Middle_Tampa_Bay_EPC_Routine.csv", sep="/"))
+tb_ph4 <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_Old_Tampa_Bay_EPC_Routine.csv", sep="/"))
 tb_ph <- rbind(tb_ph1, tb_ph2, tb_ph3, tb_ph4)
 
 # add in Palmer Z
-tb_PZ <- read.csv(paste(palmerz,"PalmerZ_CD3.csv", sep="/" ), skip=3)
+tb_PZ <- read.csv(paste(enviro_data,"PalmerZ/PalmerZ_CD3.csv", sep="/" ), skip=3)
 
 #add in rainfall
-tb_rf1 <- read.csv(paste(rainfall, "TB_Rainfall_89_97.csv", sep="/"))
-tb_rf2 <- read.csv(paste(rainfall, "TB_Rainfall_98_07.csv", sep="/"))
-tb_rf3 <- read.csv(paste(rainfall, "TB_Rainfall_08_17.csv", sep="/"))
+tb_rf1 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_89_97.csv", sep="/"))
+tb_rf2 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_98_07.csv", sep="/"))
+tb_rf3 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_08_17.csv", sep="/"))
 tb_rf < - rbind(tb_rf1, tb_rf2, tb_rf3)
 
 #add in salinity
-tb_sal1 <- read.csv(paste(salinity, "Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
-tb_sal2 <- read.csv(paste(salinity, "Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal3 <- read.csv(paste(salinity, "Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal4 <- read.csv(paste(salinity, "Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal1 <- read.csv(paste(enviro_data, "Salinity/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
+tb_sal2 <- read.csv(paste(enviro_data, "Salinity/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal3 <- read.csv(paste(enviro_data, "Salinity/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
+tb_sal4 <- read.csv(paste(enviro_data, "Salinity/Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
 tb_sal <- rbind(tb_sal1, tb_sal2, tb_sal3, tb_sal4)
 
 #add in seagrass cover
-tb_sg <- read.csv(paste(seagrass, "SWFWMD_Seagrass_TB.csv", sep="/"))
+tb_sg <- read.csv(paste(enviro_data, "Seagrass/SWFWMD_Seagrass_TB.csv", sep="/"))
 
 #add in streamflow
-tb_AlafR <- read.csv(paste(streamflow, "TB/Alafia_River.csv", sep="/"), skip=28)
-tb_HillR <- read.csv(paste(streamflow, "TB/Hillsborough_river.csv", sep="/"), skip=28)
-tb_ManR <- read.csv(paste(streamflow, "TB/Little.Manatee_River.csv", sep="/"), skip=28)
+tb_AR <- read.csv(paste(enviro_data, "Streamflow/TB/Alafia_River.csv", sep="/"), skip=28)
+tb_HR <- read.csv(paste(enviro_data, "Streamflow/TB/Hillsborough_river.csv", sep="/"), skip=28)
+tb_LMR <- read.csv(paste(enviro_data, "Streamflow/TB/Little.Manatee_River.csv", sep="/"), skip=28)
 
 #add in water temp
-tb_wt1 <- read.csv(paste(watertemp, "Water_temperature_Hillsborough_Bay.csv", sep="/"))
-tb_wt2 <- read.csv(paste(watertemp, "Water_temperature_Lower_Tampa_Bay.csv", sep="/"))
-tb_wt3 <- read.csv(paste(watertemp, "Water_temperature_Middle_Tampa_Bay.csv", sep="/"))
+tb_wt1 <- read.csv(paste(enviro_data, "WaterTemp/Water_temperature_Hillsborough_Bay.csv", sep="/"))
+tb_wt2 <- read.csv(paste(enviro_data, "WaterTemp/Water_temperature_Lower_Tampa_Bay.csv", sep="/"))
+tb_wt3 <- read.csv(paste(enviro_data, "WaterTemp/Water_temperature_Middle_Tampa_Bay.csv", sep="/"))
 tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 
 
-# build join function ####
+# build joinEV function ####
 
 #provide the catch dataset, the environmental data set, the fuzzy lat/long, variable name, and parameter name (as a character)
 #function works for TB and CH for enviro variables nitrogen, phosphorous and salinity
@@ -292,6 +304,46 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
 } 
 # END FUNCTION
 
+#build joinCD function ####
+
+#where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
+
+joinCD <- function(catch,env,env2, env3){ 
+  env <- env %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly)
+  env$month <- as.numeric(env$month)
+  
+  env2 <- env2 %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly)
+  env2$month <- as.numeric(env2$month)
+  
+  env3 <- env3 %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(MinT_val=Value, MinT_anom = Anomaly)
+  env3$month <- as.numeric(env3$month)
+  
+  new <- left_join(catch, env, by =c("year", "month")) %>% select(-c(Date))
+  new2 <- left_join(new, env2, by =c("year", "month")) %>% select(-c(Date))
+  new3 <- left_join(new2, env3, by =c("year", "month")) %>% select(-c(Date))
+  
+  new3
+} #END FUNCTION
+
+
+#build clean streamflow function ####
+cleanSF <- function(sf, name){
+  #convert datetime to a date format so that I can commands in lubridate package
+  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 3,4), month=substr(Date, 6,7))
+  colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
+  sf <- sf %>% select(-c(agency, site_no, datetime, code))
+  sf$value <- as.numeric(as.character(sf$value))
+  av_sf <- aggregate(value ~ year + month, FUN= "mean", data=sf)
+  av_sf$month <- as.numeric(av_sf$month)
+  colnames(av_sf) <- c("year", "month", name)
+  av_sf
+}
+
+#TO_DO- build rainfall function ####
+
+#next build rainfall function and then 
+
+
 # join nitrogen, phosphorous, salinity, water temp ####
 # tic()
 # nit_full <- joinEV(TB_main, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl")
@@ -313,24 +365,53 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
 # toc()
 # write.csv(wt_full, paste(out, "TB_wt_join.csv", sep="/"))
 
-# build join function for airtemp and palmerZ ####
+# TO_DO merge nitrogen, phos, salinity, water temp ####
+TB_nit <- read.csv(paste(out, "TB_nit_join_0432.csv", sep="/"), header=T) %>% select(V3, V4)
+colnames(TB_nit) <- c("Reference", "Nit_val")
 
-joinCD
+TB_phos <- read.csv(paste(out, "TB_ph_join_0432.csv", sep="/"), header=T) %>% select(V3, V4)
+colnames(TB_phos) <- c("Reference", "Phos_val")
 
-#turn Date in to year and month
-#adjust name of Value column and Anomaly column to specifically list the variable name
-# i.e  Value = MaxT_value, Anomaly = MaxT_Anom
-#Anomaly (departure from mean)
-#Where year == year & month == month then append the value of Value and anomaly
-# on to the main catch dataset
+
+
+
+
+test <-  left_join(TB_main, TB_nit, by="Reference")
+
+
+
+
+# merge airtemp and palmerZ (climate zones-CD) ####
+TB_new <- joinCD(TB_main, tb_PZ,tb_maxT,tb_minT)
+
+
+# merge streamflow ####
+
+tb_av_AR <- cleanSF(tb_AR, "Mean_AR") #mean discharge in cubic feet/second
+tb_av_HR <- cleanSF(tb_HR, "Mean_HR") #mean discharge in cubic feet/second
+tb_av_LMR <- clean(tb_LMR, "Mean_LMR")     #mean discharge in cubic feet/second
+
+
+TB_new2 <- left_join(TB_new, tb_av_AR, by =c("year", "month"))
+TB_new3 <- left_join(TB_new2, tb_av_HR, by =c("year", "month"))
+TB_new4 <- left_join(TB_new3, tb_av_LMR, by =c("year", "month"))
+
+
+#TO_DO- merge rainfall ####
+
+
+
+
+
+
 
 
 # CH ####
 
 #import catch ####
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
-#ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ch_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/chm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+#ch_phys <- read_sas(paste(phys_dat, "chm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ch_phys$Reference <- as.character(ch_phys$Reference)
 ch_hyd <- subset(read_sas("ch_yoy_cn_hyd.sas7bdat")) 
 #Also duplicated References in ch_hyd
@@ -338,39 +419,48 @@ ch_hyd <- ch_hyd[!duplicated(ch_hyd$Reference),]
 ch <- left_join(ch, ch_phys, by="Reference") %>% left_join(ch_hyd, by="Reference")
 ch <- ch %>% select(noquote(order(colnames(ch))))  #reorders the columns alphabetically 
 
-#clean catch ####
+# fill missing lat/long ####
+#Add in missing lat and long based on the Zone. I.e. if lat and long is missing then use lat and long for similar zone. This is necessary to be able to match any environmental data based on time and space. 
+unique(ch$Zone)
+unique(subset(ch, is.na(Latitude))$Zone) #assume if its missing Long then its also missing Lat
+
+#No missing lats and longs
+CH_cat <- ch %>% mutate(NewLong = Longitude, NewLat = Latitude)
+
+#tidy catch ####
+CH_main <- tidy_catch(CH_cat)
 
 # import environment #### 
 #add in air temp
-ch_maxT <- read.csv(paste(airtemp, "Max_Temp_CD5.csv", sep="/"), skip=4)
-ch_minT <- read.csv(paste(airtemp, "Min_Temp_CD5.csv", sep="/"), skip=4)
+ch_maxT <- read.csv(paste(enviro_data, "AirTemp/Max_Temp_CD5.csv", sep="/"), skip=4)
+ch_minT <- read.csv(paste(enviro_data, "AirTemp/Min_Temp_CD5.csv", sep="/"), skip=4)
 
 #add in nitrogen
-ch_nit <- read.csv(paste(nutrient_dat, "Nitrogen_CH.csv", sep="/"))
+ch_nit <- read.csv(paste(enviro_data, "Nutrients/Nitrogen_CH.csv", sep="/"))
 
 #add in phosphorous
-ch_ph <- read.csv(paste(nutrient_dat, "Phosphorous_CH.csv", sep="/"))
+ch_ph <- read.csv(paste(enviro_data, "Nutrients/Phosphorous_CH.csv", sep="/"))
 
 # add in Palmer Z
-ch_PZ <- read.csv(paste(palmerz,"PalmerZ_CD5.csv", sep="/" ),skip=3)
+ch_PZ <- read.csv(paste(enviro_data,"PalmerZ/PalmerZ_CD5.csv", sep="/" ),skip=3)
 
 #add in rainfall
-ch_rf <- read.csv(paste(rainfall, "CH_Rainfall_89_17.csv", sep="/"))
+ch_rf <- read.csv(paste(enviro_data, "Rainfall/CH_Rainfall_89_17.csv", sep="/"))
 
 #add in salinity
-ch_sal <- read.csv(paste(salinity, "Salinity_CharlotteHarbor_MultipleSources.csv", sep="/"))
+ch_sal <- read.csv(paste(enviro_data, "Salinity/Salinity_CharlotteHarbor_MultipleSources.csv", sep="/"))
 
 #add in Seagrass Cover
-ch_sg <- read.csv(paste(seagrass, "Seagrass_Cover_CharlotteHarbor.csv", sep="/"))
+ch_sg <- read.csv(paste(enviro_data, "Seagrass/Seagrass_Cover_CharlotteHarbor.csv", sep="/"))
 
 #add in streamflow
-ch_CaloR <- read.csv(paste(streamflow, "CH/Caloosagatchee_River.csv", sep="/"), skip=28)
-ch_MyakR <- read.csv(paste(streamflow, "CH/Myakka_River.csv", sep="/"), skip=28)
-ch_PeaR <- read.csv(paste(streamflow, "CH/Peace_River.csv", sep="/"), skip=28)
-ch_ShellC <- read.csv(paste(streamflow, "CH/Shell_Creek.csv", sep="/"), skip=28)
+ch_CaloR <- read.csv(paste(enviro_data, "Streamflow/CH/Caloosagatchee_River.csv", sep="/"), skip=28)
+ch_MyakR <- read.csv(paste(enviro_data, "Streamflow/CH/Myakka_River.csv", sep="/"), skip=28)
+ch_PeaR <- read.csv(paste(enviro_data, "Streamflow/CH/Peace_River.csv", sep="/"), skip=28)
+ch_ShellC <- read.csv(paste(enviro_data, "Streamflow/CH/Shell_Creek.csv", sep="/"), skip=28)
 
 #add in water temp
-ch_wt <- read.csv(paste(watertemp, "WaterTemp_CH.csv", sep="/"))
+ch_wt <- read.csv(paste(enviro_data, "WaterTemp/WaterTemp_CH.csv", sep="/"))
 
 # join nitrogen, phosphorous, salinity, water temp ####
 # tic()
@@ -393,6 +483,8 @@ ch_wt <- read.csv(paste(watertemp, "WaterTemp_CH.csv", sep="/"))
 # toc()
 # write.csv(wt_full, paste(out, "CH_wt_join.csv", sep="/"))
 
+# Join airtemp and palmerZ (climate zones-CD) ####
+#where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
 
 
 
