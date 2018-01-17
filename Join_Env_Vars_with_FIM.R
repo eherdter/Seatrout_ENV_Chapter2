@@ -1,9 +1,9 @@
-# ABOUT ####
+# About ####
 # R script for getting all of the FIM habitat and environmental variables together.
 # Some of this script borrows from Delta_Method_For_Producing_Nominal
 # Environmental variables collected by FIM include: Dissolved O2, Salinity, Temp, pH, secchi depth
 
-# SET WORKING DIRECTORY ####
+# Set Working Directory ####
 #must change working directory for data when working on personal vs work computer
 rm(list=ls())
 
@@ -33,14 +33,15 @@ out =   "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes"
 setwd(personal_comp)
 setwd(work_comp)
 
-# LOAD PACKAGES ####
+# Load Packages
+####
 library(haven) 
 library(dplyr) 
 library(geosphere)
 library(cluster)
 library(tictoc)
 
-# ABOUT- IMPORT DATA SETS ####
+# About- Import Data Sets ####
 # These data sets were produced using the spp_comb_5_13_EG_2bays_yoy_2015_EHedits.sas program which is stored in my scratch folder
 # For more description see Delta_Method_for_Producing R script 
 
@@ -60,30 +61,8 @@ library(tictoc)
 # observations and not drop any that maybe do not have associated enviro variables or add observations of enviro variables to referecence numbers
 # Reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
 
-# AP####
-ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
-#ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ap_phys$Reference <- as.character(ap_phys$Reference)
-#There are duplicated References in ap_hyd
-ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
-#There are duplicated References in ap_hyd
-ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
-ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
-ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
 
-# CK ####
-ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
-#ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ck_phys$Reference <- as.character(ck_phys$Reference)
-ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat")) 
-#Also duplicated References in ck_hyd
-ck_hyd <- ck_hyd[!duplicated(ck_hyd$Reference),]
-ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference")
-ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
-
-#TB ####
+#TAMPA BAY ####
 
 # import catch ####
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
@@ -166,7 +145,7 @@ tb_PZ <- read.csv(paste(enviro_data,"PalmerZ/PalmerZ_CD3.csv", sep="/" ), skip=3
 tb_rf1 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_89_97.csv", sep="/"))
 tb_rf2 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_98_07.csv", sep="/"))
 tb_rf3 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_08_17.csv", sep="/"))
-tb_rf < - rbind(tb_rf1, tb_rf2, tb_rf3)
+tb_rf <- rbind(tb_rf1, tb_rf2, tb_rf3)
 
 #add in salinity
 tb_sal1 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
@@ -332,7 +311,6 @@ joinCD <- function(catch,env,env2, env3){
 
 #build clean streamflow function ####
 cleanSF <- function(sf, name){
-  #convert datetime to a date format so that I can commands in lubridate package
   sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 3,4), month=substr(Date, 6,7))
   colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
   sf <- sf %>% select(-c(agency, site_no, datetime, code))
@@ -343,9 +321,15 @@ cleanSF <- function(sf, name){
   av_sf
 }
 
-#TO_DO- build rainfall function ####
-
-#next build rainfall function and then 
+#build clean rainfall function ####
+cleanRF <- function(rf, name) {
+  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,3,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
+  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
+  tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+  #tot_rf$month <- as.numeric(tot_rf$month)
+  colnames(tot_rf) <- c("year", "month", name)
+  tot_rf
+}
 
 
 # join nitrogen, phosphorous, salinity, water temp ####
@@ -376,37 +360,50 @@ write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/")
 # toc()
 # write.csv(wt_full, paste(out, "TB_wt_join.csv", sep="/"))
 
-# TO_DO merge nitrogen, phos, salinity, water temp ####
-TB_nit <- read.csv(paste(out, "TB_nit_join_0432.csv", sep="/"), header=T) %>% select(V3, V4)
+# merge nitrogen, phos, salinity, water temp ####
+TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
 colnames(TB_nit) <- c("Reference", "Nit_val")
 
-TB_phos <- read.csv(paste(out, "TB_ph_join_0432.csv", sep="/"), header=T) %>% select(V3, V4)
+TB_phos <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
 colnames(TB_phos) <- c("Reference", "Phos_val")
 
+TB_sal <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_sal_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
+colnames(TB_sal) <- c("Reference", "Sal_val")
 
-test <-  left_join(TB_main, TB_nit, by="Reference")
+TB_wat <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_wt_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
+colnames(TB_wat) <- c("Reference", "WatTemp_val")
 
+TB_new <-  left_join(TB_main, TB_nit, by="Reference")
+TB_new2 <-  left_join(TB_new, TB_phos, by="Reference")
+TB_new3 <-  left_join(TB_new2, TB_sal, by="Reference")
+TB_new4 <-  left_join(TB_new3, TB_wat, by="Reference")
 
 # merge airtemp and palmerZ (climate zones-CD) ####
-TB_new <- joinCD(TB_main, tb_PZ,tb_maxT,tb_minT)
-
+TB_new5 <- joinCD(TB_new4, tb_PZ,tb_maxT,tb_minT)
 
 # merge streamflow ####
+tb_av_AR <- cleanSF(tb_AR, "Mean_AR_dis") #mean discharge in cubic feet/second
+tb_av_HR <- cleanSF(tb_HR, "Mean_HR_dis") #mean discharge in cubic feet/second
+tb_av_LMR <- cleanSF(tb_LMR, "Mean_LMR_dis")     #mean discharge in cubic feet/second
 
-tb_av_AR <- cleanSF(tb_AR, "Mean_AR") #mean discharge in cubic feet/second
-tb_av_HR <- cleanSF(tb_HR, "Mean_HR") #mean discharge in cubic feet/second
-tb_av_LMR <- clean(tb_LMR, "Mean_LMR")     #mean discharge in cubic feet/second
+TB_new6 <- left_join(TB_new5, tb_av_AR, by =c("year", "month"))
+TB_new7 <- left_join(TB_new6, tb_av_HR, by =c("year", "month"))
+TB_new8 <- left_join(TB_new7, tb_av_LMR, by =c("year", "month"))
 
+#merge rainfall ####
+tb_tot_rf <- cleanRF(tb_rf, "TotMonthlyRF")
+tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
 
-TB_new2 <- left_join(TB_new, tb_av_AR, by =c("year", "month"))
-TB_new3 <- left_join(TB_new2, tb_av_HR, by =c("year", "month"))
-TB_new4 <- left_join(TB_new3, tb_av_LMR, by =c("year", "month"))
+TB_new9 <- left_join(TB_new8, tb_tot_rf, by=c("year", "month"))
 
+#produce attenuation coefficient ####
+# Only want to do this for Secchi_on_bottom = NO
 
-#TO_DO- merge rainfall ####
+TB_new9 <- TB_new9 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
+# TO DO - FIND WHERE ADDITIONAL ROWS ARE COMING FROM!!!! ####
 
-
+#output ####
 
 
 
@@ -555,29 +552,38 @@ toc()
 wt_full <- subset(wt_full, !duplicated(V3))
 write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_043.csv", sep="/")) 
 
+#merge nitrogen, phos, salinity, water temp ####
 
 
 
-
-
-# 
-# tic()
-# ph_full <- joinEV(CH_main, ch_ph, 0.017, 0.017, phosphorous, "TP_ugl")
-# toc()
-# write.csv(ph_full, paste(out, "CH_ph_join.csv", sep="/"))
-# 
-# tic()
-# sal_full <- joinEV(CH_main, ch_sal, 0.017, 0.017, salinity, "Salinity_ppt")
-# toc()
-# write.csv(sal_full, paste(out, "CH_sal_join.csv", sep="/"))
-# 
-# tic()
-# wt_full <- joinEV(CH_main, ch_wt, 0.017, 0.017, watertemp, "TempW_F")
-# toc()
-# write.csv(wt_full, paste(out, "CH_wt_join.csv", sep="/"))
-
-# Join airtemp and palmerZ (climate zones-CD) ####
+#merge airtemp and palmerZ (climate zones-CD) ####
 #where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
+# merge streamflow ####
+
+#TO_DO- merge rainfall ####
+
+# AP####
+ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
+#ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys$Reference <- as.character(ap_phys$Reference)
+#There are duplicated References in ap_hyd
+ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
+#There are duplicated References in ap_hyd
+ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
+ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
+ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
+
+# CK ####
+ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
+#ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ck_phys$Reference <- as.character(ck_phys$Reference)
+ck_hyd <- subset(read_sas("ck_yoy_cn_hyd.sas7bdat")) 
+#Also duplicated References in ck_hyd
+ck_hyd <- ck_hyd[!duplicated(ck_hyd$Reference),]
+ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference")
+ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
 
 
 # IR ####
@@ -611,13 +617,9 @@ full <- rbind(ap, ck, tb, ch, ir, jx)
 
 
 
-
-
-
-
-
-
-
+# PROCUDE ATTENUATION COEFFICIENT FROM SECCHI DEPTH ####
+# Only want to do this for Secchi_on_bottom = NO
+full <- full %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
 
 
@@ -636,9 +638,9 @@ full <-  full %>%
   mutate(bottom = ifelse(full$bStr ==1, "structure", ifelse(full$bSan>0 | full$bMud>0, "mudsand", "unknown")), 
          veg= ifelse(full$bveg == "SAVAlg", "SAV", ifelse(full$bveg == "Alg", "SAV", ifelse(full$bveg =="SAV", "SAV", "Noveg"))),
          shore = ifelse(substr(full$Shore,1,3)=="Eme", "Emerge", ifelse(substr(full$Shore,1,3) =="Man", "Mangrove", 
-          ifelse(substr(full$Shore,1,3)=="Str", "Structure", ifelse(substr(full$Shore, 1,3)=="Ter", "Terrestrial", "Non")))))    %>%
-        select(-c(bStr, bSan, bMud, bveg, Shore)) %>% subset(!shore=="Non") %>% 
-          mutate(avgDepth = mean(c(StartDepth, Enddepth)))
+                                                                        ifelse(substr(full$Shore,1,3)=="Str", "Structure", ifelse(substr(full$Shore, 1,3)=="Ter", "Terrestrial", "Non")))))    %>%
+  select(-c(bStr, bSan, bMud, bveg, Shore)) %>% subset(!shore=="Non") %>% 
+  mutate(avgDepth = mean(c(StartDepth, Enddepth)))
 
 #Turn habitat variables into factors so they can be treated as categorical
 full[,c(2,5:9)] <- lapply(full[,c(2,5:9)], factor)
@@ -696,13 +698,6 @@ with(ir.fl,tapply(number, list(year,bottom),sum))
 with(ir.fl,tapply(number, list(year,shore),sum))
 ir.fl <- na.omit(ir.fl)
 ir.fl$month <- as.factor(as.character(ir.fl$month))
-
-# PROCUDE ATTENUATION COEFFICIENT FROM SECCHI DEPTH ####
-# Only want to do this for Secchi_on_bottom = NO
-full <- full %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
-
-
-
 
 
 
