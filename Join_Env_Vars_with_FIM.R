@@ -118,7 +118,7 @@ tidy_catch = function(catch) {
   catch_main
 }
 
-TB_main <- tidy_catch(TB_cat)
+TB_red <- tidy_catch(TB_cat)
 
 # import environment #### 
 #add in air temp
@@ -294,12 +294,15 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
 joinCD <- function(catch,env,env2, env3){ 
   env <- env %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly)
   env$month <- as.numeric(env$month)
+  env$year <- as.numeric(env$year)
   
   env2 <- env2 %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly)
   env2$month <- as.numeric(env2$month)
+  env2$year <- as.numeric(env2$year)
   
   env3 <- env3 %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(MinT_val=Value, MinT_anom = Anomaly)
   env3$month <- as.numeric(env3$month)
+  env3$year <- as.numeric(env3$year)
   
   new <- left_join(catch, env, by =c("year", "month")) %>% select(-c(Date))
   new2 <- left_join(new, env2, by =c("year", "month")) %>% select(-c(Date))
@@ -317,6 +320,7 @@ cleanSF <- function(sf, name){
   sf$value <- as.numeric(as.character(sf$value))
   av_sf <- aggregate(value ~ year + month, FUN= "mean", data=sf)
   av_sf$month <- as.numeric(av_sf$month)
+  av_sf$year <- as.numeric(av_sf$year)
   colnames(av_sf) <- c("year", "month", name)
   av_sf
 }
@@ -326,7 +330,9 @@ cleanRF <- function(rf, name) {
   rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,3,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
   tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
-  #tot_rf$month <- as.numeric(tot_rf$month)
+  tot_rf$month <- as.numeric(tot_rf$month)
+  tot_rf$year <- as.numeric(tot_rf$year)
+  #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
   colnames(tot_rf) <- c("year", "month", name)
   tot_rf
 }
@@ -334,46 +340,47 @@ cleanRF <- function(rf, name) {
 
 # join nitrogen, phosphorous, salinity, water temp ####
 # tic()
-TB_shrt <- TB_main[1:5,]
+TB_shrt <- TB_red[1:5,]
 nit_full <- joinEV(TB_shrt, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl")
 # toc()
 # write.csv(nit_full, paste(out, "TB_nit_join.csv", sep="/"))
 
 tic()
-full <- joinEV(TB_main,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) #3773, 10166.69
+full <- joinEV(TB_red,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) #3773, 10166.69
 toc()
 write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/")) 
 
 
 # tic()
-# ph_full <- joinEV(TB_main, tb_ph, 0.017, 0.017, phosphorous, "TP_ugl")
+# ph_full <- joinEV(TB_red, tb_ph, 0.017, 0.017, phosphorous, "TP_ugl")
 # toc()
 # write.csv(ph_full, paste(out, "TB_ph_join.csv", sep="/"))
 # 
 # tic()
-# sal_full <- joinEV(TB_main, tb_sal, 0.017, 0.017, salinity, "Salinity_ppt")
+# sal_full <- joinEV(TB_red, tb_sal, 0.017, 0.017, salinity, "Salinity_ppt")
 # toc()
 # write.csv(sal_full, paste(out, "TB_sal_join.csv", sep="/"))
 # 
 # tic()
-# wt_full <- joinEV(TB_main, tb_wt, 0.017, 0.017, watertemp, "TempW_F")
+# wt_full <- joinEV(TB_red, tb_wt, 0.017, 0.017, watertemp, "TempW_F")
 # toc()
 # write.csv(wt_full, paste(out, "TB_wt_join.csv", sep="/"))
 
 # merge nitrogen, phos, salinity, water temp ####
-TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
+TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
 colnames(TB_nit) <- c("Reference", "Nit_val")
 
-TB_phos <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
+TB_phos <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
 colnames(TB_phos) <- c("Reference", "Phos_val")
 
-TB_sal <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_sal_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
+TB_sal <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_sal_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
 colnames(TB_sal) <- c("Reference", "Sal_val")
 
-TB_wat <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_wt_join_043.csv", sep="/"), header=T) %>% select(V3, V4)
+TB_wat <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_wt_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
 colnames(TB_wat) <- c("Reference", "WatTemp_val")
 
-TB_new <-  left_join(TB_main, TB_nit, by="Reference")
+#join back to original catch dataset- not the reduced one. 
+TB_new <-  left_join(TB_cat, TB_nit, by="Reference")
 TB_new2 <-  left_join(TB_new, TB_phos, by="Reference")
 TB_new3 <-  left_join(TB_new2, TB_sal, by="Reference")
 TB_new4 <-  left_join(TB_new3, TB_wat, by="Reference")
@@ -392,7 +399,6 @@ TB_new8 <- left_join(TB_new7, tb_av_LMR, by =c("year", "month"))
 
 #merge rainfall ####
 tb_tot_rf <- cleanRF(tb_rf, "TotMonthlyRF")
-tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
 
 TB_new9 <- left_join(TB_new8, tb_tot_rf, by=c("year", "month"))
 
@@ -401,11 +407,8 @@ TB_new9 <- left_join(TB_new8, tb_tot_rf, by=c("year", "month"))
 
 TB_new9 <- TB_new9 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
-# TO DO - FIND WHERE ADDITIONAL ROWS ARE COMING FROM!!!! ####
-
 #output ####
-
-
+write.csv(TB_new9, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", sep="/"))
 
 
 
@@ -433,7 +436,7 @@ unique(subset(ch, is.na(Latitude))$Zone) #assume if its missing Long then its al
 CH_cat <- ch %>% mutate(NewLong = Longitude, NewLat = Latitude)
 
 #tidy catch ####
-CH_main <- tidy_catch(CH_cat)
+CH_red <- tidy_catch(CH_cat)
 
 # import environment #### 
 #add in air temp
@@ -477,90 +480,154 @@ ch_wt <- read.csv(paste(enviro_data, "WaterTemp/CH/WaterTemp_CH.csv", sep="/"))
 # Not sure the best way to deal with this so will just produce it and then select unique reference values afterward.
 
 #nitrogen
-tic()
-nit_full <- joinEV(CH_main, ch_nit, 0.017, 0.017, nitrogen, "TN_ugl")
-toc()
-nit_full <- subset(nit_full, !duplicated(V3)) #V3=reference
-write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_017.csv", sep="/"))
-
-tic()
-nit_full <- joinEV(CH_main, ch_nit, 0.0288, 0.0288, nitrogen, "TN_ugl")
-toc()
-nit_full <- subset(nit_full, !duplicated(V3))
-write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_028.csv", sep="/"))
-
-tic()
-nit_full <- joinEV(CH_main,ch_nit, 0.0432, 0.0432, nitrogen, "TN_ugl" ) 
-toc()
-nit_full <- subset(nit_full, !duplicated(V3))
-write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043.csv", sep="/")) 
-
-#phos
-tic()
-pho_full <- joinEV(CH_main, ch_ph, 0.017, 0.017, phosphorous, "TP_ugl")
-toc()
-pho_full <- subset(pho_full, !duplicated(V3)) #V3=reference
-write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_017.csv", sep="/"))
-
-tic()
-pho_full <- joinEV(CH_main, ch_ph, 0.0288, 0.0288, phosphorous, "TP_ugl")
-toc()
-pho_full <- subset(pho_full, !duplicated(V3))
-write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_028.csv", sep="/"))
-
-tic()
-pho_full <- joinEV(CH_main,ch_ph, 0.0432, 0.0432, phosphorous, "TP_ugl" ) 
-toc()
-pho_full <- subset(pho_full, !duplicated(V3))
-write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_043.csv", sep="/")) 
-
-#salinity
-tic()
-sal_full <- joinEV(CH_main, ch_sal, 0.017, 0.017, salinity, "Salinity_ppt")
-toc()
-sal_full <- subset(sal_full, !duplicated(V3)) #V3=reference
-write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_017.csv", sep="/"))
-
-tic()
-sal_full <- joinEV(CH_main, ch_sal, 0.0288, 0.0288, salinity, "Salinity_ppt")
-toc()
-sal_full <- subset(sal_full, !duplicated(V3))
-write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_028.csv", sep="/"))
-
-tic()
-sal_full <- joinEV(CH_main,ch_sal, 0.0432, 0.0432, salinity, "Salinity_ppt" ) 
-toc()
-sal_full <- subset(sal_full, !duplicated(V3))
-write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_043.csv", sep="/")) 
-
-#watertemp
-tic()
-wt_full <- joinEV(CH_main, ch_wt, 0.017, 0.017, watertemp, "TempW_F")
-toc()
-wt_full <- subset(wt_full, !duplicated(V3)) #V3=reference
-write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_017.csv", sep="/"))
-
-tic()
-wt_full <- joinEV(CH_main, ch_wt, 0.0288, 0.0288,  watertemp, "TempW_F")
-toc()
-wt_full <- subset(wt_full, !duplicated(V3))
-write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_028.csv", sep="/"))
-
-tic()
-wt_full <- joinEV(CH_main,ch_wt, 0.0432, 0.0432,  watertemp, "TempW_F" ) 
-toc()
-wt_full <- subset(wt_full, !duplicated(V3))
-write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_043.csv", sep="/")) 
+# tic()
+# nit_full <- joinEV(CH_main, ch_nit, 0.017, 0.017, nitrogen, "TN_ugl")
+# toc()
+# nit_full <- subset(nit_full, !duplicated(V3)) #V3=reference
+# write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_017.csv", sep="/"))
+# 
+# tic()
+# nit_full <- joinEV(CH_main, ch_nit, 0.0288, 0.0288, nitrogen, "TN_ugl")
+# toc()
+# nit_full <- subset(nit_full, !duplicated(V3))
+# write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_028.csv", sep="/"))
+# 
+# tic()
+# nit_full <- joinEV(CH_main,ch_nit, 0.0432, 0.0432, nitrogen, "TN_ugl" ) 
+# toc()
+# nit_full <- subset(nit_full, !duplicated(V3))
+# write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043.csv", sep="/")) 
+# 
+# #phos
+# tic()
+# pho_full <- joinEV(CH_main, ch_ph, 0.017, 0.017, phosphorous, "TP_ugl")
+# toc()
+# pho_full <- subset(pho_full, !duplicated(V3)) #V3=reference
+# write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_017.csv", sep="/"))
+# 
+# tic()
+# pho_full <- joinEV(CH_main, ch_ph, 0.0288, 0.0288, phosphorous, "TP_ugl")
+# toc()
+# pho_full <- subset(pho_full, !duplicated(V3))
+# write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_028.csv", sep="/"))
+# 
+# tic()
+# pho_full <- joinEV(CH_main,ch_ph, 0.0432, 0.0432, phosphorous, "TP_ugl" ) 
+# toc()
+# pho_full <- subset(pho_full, !duplicated(V3))
+# write.csv(pho_full, paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_043.csv", sep="/")) 
+# 
+# #salinity
+# tic()
+# sal_full <- joinEV(CH_main, ch_sal, 0.017, 0.017, salinity, "Salinity_ppt")
+# toc()
+# sal_full <- subset(sal_full, !duplicated(V3)) #V3=reference
+# write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_017.csv", sep="/"))
+# 
+# tic()
+# sal_full <- joinEV(CH_main, ch_sal, 0.0288, 0.0288, salinity, "Salinity_ppt")
+# toc()
+# sal_full <- subset(sal_full, !duplicated(V3))
+# write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_028.csv", sep="/"))
+# 
+# tic()
+# sal_full <- joinEV(CH_main,ch_sal, 0.0432, 0.0432, salinity, "Salinity_ppt" ) 
+# toc()
+# sal_full <- subset(sal_full, !duplicated(V3))
+# write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_043.csv", sep="/")) 
+# 
+# #watertemp
+# tic()
+# wt_full <- joinEV(CH_main, ch_wt, 0.017, 0.017, watertemp, "TempW_F")
+# toc()
+# wt_full <- subset(wt_full, !duplicated(V3)) #V3=reference
+# write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_017.csv", sep="/"))
+# 
+# tic()
+# wt_full <- joinEV(CH_main, ch_wt, 0.0288, 0.0288,  watertemp, "TempW_F")
+# toc()
+# wt_full <- subset(wt_full, !duplicated(V3))
+# write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_028.csv", sep="/"))
+# 
+# tic()
+# wt_full <- joinEV(CH_main,ch_wt, 0.0432, 0.0432,  watertemp, "TempW_F" ) 
+# toc()
+# wt_full <- subset(wt_full, !duplicated(V3))
+# write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_043.csv", sep="/")) 
 
 #merge nitrogen, phos, salinity, water temp ####
+CH_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
+colnames(CH_nit) <- c("Reference", "Nit_val")
 
+CH_phos <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
+colnames(CH_phos) <- c("Reference", "Phos_val")
 
+CH_sal <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_sal_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
+colnames(CH_sal) <- c("Reference", "Sal_val")
 
-#merge airtemp and palmerZ (climate zones-CD) ####
-#where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
+CH_wat <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
+colnames(CH_wat) <- c("Reference", "WatTemp_val")
+
+#join back to original catch dataset- not the reduced one. 
+CH_new <-  left_join(CH_cat, CH_nit, by="Reference")
+CH_new2 <-  left_join(CH_new, CH_phos, by="Reference")
+CH_new3 <-  left_join(CH_new2, CH_sal, by="Reference")
+CH_new4 <-  left_join(CH_new3, CH_wat, by="Reference")
+
+# merge airtemp and palmerZ (climate zones-CD) ####
+CH_new5 <- joinCD(CH_new4, ch_PZ,ch_maxT,ch_minT)
+
 # merge streamflow ####
+ch_av_CR <- cleanSF(ch_CaloR, "Mean_CR_dis") #mean discharge in cubic feet/second
+ch_av_MR <- cleanSF(ch_MyakR, "Mean_MR_dis") #mean discharge in cubic feet/second
+ch_av_SC <- cleanSF(ch_ShellC, "Mean_SC_dis")     #mean discharge in cubic feet/second
 
-#TO_DO- merge rainfall ####
+CH_new6 <- left_join(CH_new5, ch_av_CR, by =c("year", "month"))
+CH_new7 <- left_join(CH_new6, ch_av_MR, by =c("year", "month"))
+CH_new8 <- left_join(CH_new7, ch_av_SC, by =c("year", "month"))
+
+#merge rainfall ####
+#Charlotte harbor rainfall datasheet is set up differently than all of the rest so I can't do this using the function-must do this manually 
+
+ch_rf <- ch_rf %>% mutate(year=substr(DATE, 3,4), month = substr(DATE, 6,7))%>%  select(year, month, PRCP) %>% rename(TotMonthlyRF = PRCP)
+ch_rf$year <- as.numeric(ch_rf$year)
+ch_rf$month <- as.numeric(ch_rf$month)
+
+CH_new9 <- left_join(CH_new8, ch_rf, by=c("year", "month"))
+
+#produce attenuation coefficient ####
+# Only want to do this for Secchi_on_bottom = NO
+CH_new9 <- CH_new9 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
+
+#output ####
+write.csv(CH_new9, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_no_lag.csv", sep="/"))
+
+
+
+
+# IR ####
+ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
+#ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ir_phys$Reference <- as.character(ir_phys$Reference)
+ir_hyd <- subset(read_sas("ir_yoy_cn_hyd.sas7bdat")) 
+#Also duplicated References in ir_hyd
+ir_hyd <- ir_hyd[!duplicated(ir_hyd$Reference),]
+ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference")
+ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
+
+# JX ####
+jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
+#jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+jx_phys$Reference <- as.character(jx_phys$Reference)
+jx_hyd <- subset(read_sas("jx_yoy_cn_hyd.sas7bdat")) 
+#Also duplicated References in jx_hyd
+jx_hyd <- jx_hyd[!duplicated(jx_hyd$Reference),]
+jx <- left_join(jx, jx_phys, by="Reference") %>% left_join(jx_hyd, by="Reference")
+jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabetically 
+
+
 
 # AP####
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
@@ -586,40 +653,9 @@ ck <- left_join(ck, ck_phys, by="Reference") %>% left_join(ck_hyd, by="Reference
 ck <- ck %>% select(noquote(order(colnames(ck))))  #reorders the columns alphabetically 
 
 
-# IR ####
-ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
-#ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ir_phys$Reference <- as.character(ir_phys$Reference)
-ir_hyd <- subset(read_sas("ir_yoy_cn_hyd.sas7bdat")) 
-#Also duplicated References in ir_hyd
-ir_hyd <- ir_hyd[!duplicated(ir_hyd$Reference),]
-ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference")
-ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
-
-# JX ####
-jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
-#jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-jx_phys$Reference <- as.character(jx_phys$Reference)
-jx_hyd <- subset(read_sas("jx_yoy_cn_hyd.sas7bdat")) 
-#Also duplicated References in jx_hyd
-jx_hyd <- jx_hyd[!duplicated(jx_hyd$Reference),]
-jx <- left_join(jx, jx_phys, by="Reference") %>% left_join(jx_hyd, by="Reference")
-jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabetically 
-
-#JOIN ALL CATCH DATA ####
-full <- rbind(ap, ck, tb, ch, ir, jx)
 
 
 
-# Nitrogen data 
-
-
-
-# PROCUDE ATTENUATION COEFFICIENT FROM SECCHI DEPTH ####
-# Only want to do this for Secchi_on_bottom = NO
-full <- full %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
 
 
