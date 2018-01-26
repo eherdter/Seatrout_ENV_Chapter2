@@ -100,7 +100,10 @@ sum(is.na(tb_medM))
 
 TB_cat <- tb %>% mutate(NewLong = ifelse(Zone == "A" & is.na(Longitude), tb_medA[1,],  ifelse(Zone=="C" & is.na(Longitude), tb_medC[1,], ifelse(Zone == "D" & is.na(Longitude), tb_medD[1,], ifelse(Zone=="E" & is.na(Longitude), tb_medE[1,], ifelse(Zone == "M" & is.na(Longitude), tb_medM[1,], tb$Longitude))))), NewLat = ifelse(Zone == "A" & is.na(Latitude), tb_medA[2,],  ifelse(Zone=="C" & is.na(Latitude), tb_medC[2,], ifelse(Zone == "D" & is.na(Latitude), tb_medD[2,], ifelse(Zone=="E" & is.na(Latitude), tb_medE[2,], ifelse(Zone == "M" & is.na(Latitude), tb_medM[2,], tb$Latitude))))))
 
+
 #tidy catch ####
+
+# *************ONLY USE WHEN RUNNING THROUGH JOINENV function 
 
 #Format year to match the year in tb_nit. 
 #Then trim TB_main to select the most important zones that occur at least 10% of the time. Also, select only unique
@@ -290,17 +293,16 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
 #build joinCD function ####
 
 #where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
-
 joinCD <- function(catch,env,env2, env3){ 
-  env <- env %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly)
+  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly)
   env$month <- as.numeric(env$month)
   env$year <- as.numeric(env$year)
   
-  env2 <- env2 %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly)
+  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly)
   env2$month <- as.numeric(env2$month)
   env2$year <- as.numeric(env2$year)
   
-  env3 <- env3 %>% mutate(year = substr(Date, 3, 4), month= substr(Date,5,6)) %>% rename(MinT_val=Value, MinT_anom = Anomaly)
+  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MinT_val=Value, MinT_anom = Anomaly)
   env3$month <- as.numeric(env3$month)
   env3$year <- as.numeric(env3$year)
   
@@ -314,7 +316,7 @@ joinCD <- function(catch,env,env2, env3){
 
 #build clean streamflow function ####
 cleanSF <- function(sf, name){
-  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 3,4), month=substr(Date, 6,7))
+  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 1,4), month=substr(Date, 6,7))
   colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
   sf <- sf %>% select(-c(agency, site_no, datetime, code))
   sf$value <- as.numeric(as.character(sf$value))
@@ -325,9 +327,10 @@ cleanSF <- function(sf, name){
   av_sf
 }
 
+
 #build clean rainfall function ####
 cleanRF <- function(rf, name) {
-  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,3,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
+  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
   tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
   tot_rf$month <- as.numeric(tot_rf$month)
@@ -386,6 +389,7 @@ TB_new3 <-  left_join(TB_new2, TB_sal, by="Reference")
 TB_new4 <-  left_join(TB_new3, TB_wat, by="Reference")
 
 # merge airtemp and palmerZ (climate zones-CD) ####
+
 TB_new5 <- joinCD(TB_new4, tb_PZ,tb_maxT,tb_minT)
 
 # merge streamflow ####
@@ -405,10 +409,166 @@ TB_new9 <- left_join(TB_new8, tb_tot_rf, by=c("year", "month"))
 #produce attenuation coefficient ####
 # Only want to do this for Secchi_on_bottom = NO
 
-TB_new9 <- TB_new9 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
+TB_new9 <- TB_new9 %>% mutate(aten_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
 #output ####
 write.csv(TB_new9, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", sep="/"))
+
+# TO DO- DO LAG VARIABLE CALCULATIONS ####
+
+#lagged streamflow ####
+# seasonally averaged discharge (Purtlebaugh and Allen)
+#spring discharge ( March - May) 
+# align catch to river discharge that is closest based on lat and long 
+# mean discharge during March - May months
+# first must determine the approximate lat and long location for each river 
+
+# For Tampa Bay - USGS 02301500 Alafia River at Lithia FL 
+# 27,52, 19 (=27.8719) ; -82.12.41 (= -82.2114)
+
+# Hillsborough river USGS 02304500 Hillsborough River near Tampa FL
+# 28.01.25 (= 28.0236 ); -82.25.40 (=-82.4278)
+
+# Little manatee river USGS 02300500
+# 27.40.15 (=27.6708) ; -82.21.10 (= -82.3528)
+
+
+# months = 3,4,5 
+
+#for each observation I need to determine the closest spring average discharge based on the year and the closest river
+
+AR_mouth = as.numeric(c(-82.398480, 27.853702)) #long, lat format
+HR_mouth = as.numeric(c(-82.461944, 27.937778))
+LMR_mouth = as.numeric(c(-82.486, 27.716))
+
+riv = rbind(AR_mouth, HR_mouth, LMR_mouth)
+
+TB_cor = TB_new9[1,64:65]
+
+test = distm(riv, TB_cor) 
+
+test2= cbind(riv, test)
+
+selec <- test2[test2[,3] == min(test2[,3]),]
+selec_latlong <- selec[1:2]
+
+
+# if selec_latlong  == AR_mouth 
+# then
+
+selec_latlong == AR_mouth
+selec_latlong == HR_mouth
+
+
+#build clean streamflow function that makes mean seasonal ####
+#mean discharge in cubic feet/second
+cleanSF_withSeason <- function(sf, name){
+  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 1,4), month=substr(Date, 6,7))
+  colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
+  sf <- sf %>% select(-c(agency, site_no, datetime, code))
+  sf$value <- as.numeric(as.character(sf$value))
+  sf$season <- ifelse(sf$month %in% c("03","04","05"), "spring", ifelse(sf$month %in% c("06","07","08","09"), "summer", ifelse(sf$month %in% c("10","11","12"), "autumn", ifelse(sf$month %in% c("01","02"), "winter", "NA"))))
+  av_seas_sf <- aggregate(value ~ year + season, FUN= "mean", data=sf)
+  av_seas_sf <- subset(av_seas_sf, season =="spring")
+  av_seas_sf$year <- as.numeric(av_seas_sf$year)
+  colnames(av_seas_sf) <- c("year", "season", name)
+  av_seas_sf
+} 
+
+
+tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
+tb_seas_AR$riv <- "AR"
+tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
+tb_seas_HR$riv <- "HR"
+tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cubic feet/second
+tb_seas_LMR$riv <- "LMR"
+tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
+
+
+
+AR_mouth = as.numeric(c(-82.398480, 27.853702)) #long, lat format
+HR_mouth = as.numeric(c(-82.461944, 27.937778))
+LMR_mouth = as.numeric(c(-82.486, 27.716))
+
+riv = rbind(AR_mouth, HR_mouth, LMR_mouth)
+
+TB_cor = TB_new9[1,64:65]
+
+test = distm(riv, TB_cor) 
+
+test2= cbind(riv, test)
+
+selec <- test2[test2[,3] == min(test2[,3]),]
+selec_long <- selec[1]
+
+
+# if selec_latlong  == AR_mouth 
+# and the month in the main catch is greater than 5 then join the main catch with the 
+# seasonaly averaged tb_seas_AR based on the year match in the main catch and the seasonally averaged tb_seas_AR 
+
+
+#define closest River 
+TB_cat$ClosestRiver = ""
+for(i in 1:nrow(TB_cat))
+{ cor = TB_cat[i,64:65]
+
+distance = distm(riv, cor)
+dcomb= cbind(riv, distance)
+selec <- dcomb[dcomb[,3] == min(dcomb[,3]),]
+selec_long <- selec[1]
+
+  if (selec_long == AR_mouth[1]) {
+    TB_cat[i, 66 ] <- "AR"
+  }
+   if (selec_long == HR_mouth[1]) {
+     TB_cat[i,66] <- "HR"
+   }
+  if (selec_long == LMR_mouth[1]) {
+    TB_cat[i,66] <- "LMR"
+  }
+}
+
+# TB_cat$ClosestRiver <- as.factor(TB_cat$ClosestRiver)
+# table(TB_cat$ClosestRiver)
+
+
+TB_cat$seasonal_dis <- 1
+
+for (i in 1:nrow(TB_cat)){
+  cat_month = TB_cat[i,30]
+  cat_year = TB_cat[i,61]
+  cat_riv = TB_cat[i,66]
+  seasonal_dis = TB_cat[i,67]
+  
+  for (j in 1:nrow(tb_seas_All))
+    riv_year = tb_seas_All[j,1]
+    riv_name = tb_seas_All[j,4]
+    riv_dis = tb_seas_All[j,3]
+    
+    if ((cat_month >=5) & (cat_year == riv_year) & (cat_riv == riv_name)){
+      seasonal_dis = riv_dis
+    }
+    TB_cat
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -605,7 +765,7 @@ write.csv(CH_new9, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_no_lag.csv", sep
 
 
 
-# IR ####
+# TO DO- IR ####
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
 #ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -616,7 +776,7 @@ ir_hyd <- ir_hyd[!duplicated(ir_hyd$Reference),]
 ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference")
 ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
 
-# JX ####
+# TO DO- JX ####
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
 #jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -629,7 +789,7 @@ jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabe
 
 
 
-# AP####
+# TO DO- AP####
 ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
 #ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -641,7 +801,7 @@ ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
 ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
 ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
 
-# CK ####
+# To DO- CK ####
 ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
 #ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
