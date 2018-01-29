@@ -61,8 +61,9 @@ library(tictoc)
 # observations and not drop any that maybe do not have associated enviro variables or add observations of enviro variables to referecence numbers
 # Reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
 
-
+#.####
 #TAMPA BAY ####
+#.####
 
 # import catch ####
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
@@ -314,7 +315,7 @@ joinCD <- function(catch,env,env2, env3){
 } #END FUNCTION
 
 
-#build clean streamflow function ####
+#build clean riverflow function ####
 cleanSF <- function(sf, name){
   sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 1,4), month=substr(Date, 6,7))
   colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
@@ -323,9 +324,72 @@ cleanSF <- function(sf, name){
   av_sf <- aggregate(value ~ year + month, FUN= "mean", data=sf)
   av_sf$month <- as.numeric(av_sf$month)
   av_sf$year <- as.numeric(av_sf$year)
-  colnames(av_sf) <- c("year", "month", name)
+  colnames(av_sf) <- c("year", "month", "streamflow")
+  av_sf$riv_name <- name
   av_sf
 }
+
+
+#build closest River function #### 
+# To be used with TB_cat BEFORE joining of all other variables 
+
+closestRiver = function(catch, riv){
+  
+  for(i in 1:nrow(catch)){
+    cor = catch[i,64:65] 
+    distance = distm(riv[,1:2], cor)
+    dcomb= cbind(riv, distance)
+    selec <- dcomb[dcomb[,4] == min(dcomb[,4]),]
+    selec_riv <- selec[3]
+    catch[i,66] <- selec_riv 
+  }
+  catch
+}
+
+# TEST - build join riverflow function ####
+
+TB_cat$river_flow <- 1
+
+join_riverflow = function(catch, streamflow){
+
+for (i in 1:nrow(TB_cat)){
+  cat_month = TB_cat[i,30]
+  cat_year = TB_cat[i,61] 
+  cat_riv = TB_cat[i,66] #66
+  
+  
+  for (j in 1:nrow(streamfl)){
+    riv_year = streamfl[j,1]
+    riv_month = streamfl[j,2]
+    riv_dis = streamfl[j,3]
+    riv_name = streamfl[j,4]
+    
+    if((cat_riv==riv_name) & (cat_year == riv_year) & (cat_month == riv_month)){
+      TB_cat[i,67] <- riv_dis
+      
+    } 
+    
+  }
+  
+}
+  catch
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #build clean rainfall function ####
@@ -369,6 +433,52 @@ write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/")
 # toc()
 # write.csv(wt_full, paste(out, "TB_wt_join.csv", sep="/"))
 
+# merge closest river mouth ####
+AR_mouth = c(-82.398480, 27.853702) #, "AR") #long, lat format
+HR_mouth = c(-82.461944, 27.937778) #, "HR")
+LMR_mouth = c(-82.486, 27.716) #, "LMR")
+riv_name= c("AR", "HR", "LMR")
+rivers = data.frame(rbind(AR_mouth, HR_mouth, LMR_mouth))
+rivers = cbind(rivers, riv_name)
+rivers$riv_name <- as.character(rivers$riv_name)
+
+
+TB_cat$closest_riv <- ""
+TB_cat <- closestRiver(TB_cat, rivers)
+
+# WORKING merge riverflow ####
+tb_av_AR <- cleanSF(tb_AR, "AR") #mean discharge in cubic feet/second
+tb_av_HR <- cleanSF(tb_HR, "HR") #mean discharge in cubic feet/second
+tb_av_LMR <- cleanSF(tb_LMR, "LMR")     #mean discharge in cubic feet/second
+
+streamfl <- rbind(tb_av_AR, tb_av_HR, tb_av_LMR)
+
+
+TB_cat$river_flow <- 1
+tic()
+for (i in 1:nrow(TB_cat)){
+  cat_month = TB_cat[i,30]
+  cat_year = TB_cat[i,61] 
+  cat_riv = TB_cat[i,66] #66
+
+    
+    for (j in 1:nrow(streamfl)){
+      riv_year = streamfl[j,1]
+      riv_month = streamfl[j,2]
+      riv_dis = streamfl[j,3]
+      riv_name = streamfl[j,4]
+      
+      if((cat_riv==riv_name) & (cat_year == riv_year) & (cat_month == riv_month)){
+        TB_cat[i,67] <- riv_dis
+        
+      } 
+      
+    }
+    
+  }
+toc()
+
+
 # merge nitrogen, phos, salinity, water temp ####
 TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
 colnames(TB_nit) <- c("Reference", "Nit_val")
@@ -392,50 +502,24 @@ TB_new4 <-  left_join(TB_new3, TB_wat, by="Reference")
 
 TB_new5 <- joinCD(TB_new4, tb_PZ,tb_maxT,tb_minT)
 
-# merge streamflow ####
-tb_av_AR <- cleanSF(tb_AR, "Mean_AR_dis") #mean discharge in cubic feet/second
-tb_av_HR <- cleanSF(tb_HR, "Mean_HR_dis") #mean discharge in cubic feet/second
-tb_av_LMR <- cleanSF(tb_LMR, "Mean_LMR_dis")     #mean discharge in cubic feet/second
-
-TB_new6 <- left_join(TB_new5, tb_av_AR, by =c("year", "month"))
-TB_new7 <- left_join(TB_new6, tb_av_HR, by =c("year", "month"))
-TB_new8 <- left_join(TB_new7, tb_av_LMR, by =c("year", "month"))
-
 #merge rainfall ####
 tb_tot_rf <- cleanRF(tb_rf, "TotMonthlyRF")
 
-TB_new9 <- left_join(TB_new8, tb_tot_rf, by=c("year", "month"))
+TB_new6 <- left_join(TB_new5, tb_tot_rf, by=c("year", "month"))
 
 #produce attenuation coefficient ####
 # Only want to do this for Secchi_on_bottom = NO
 
-TB_new9 <- TB_new9 %>% mutate(aten_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
+TB_new6 <- TB_new6 %>% mutate(aten_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
 #output ####
-write.csv(TB_new9, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", sep="/"))
+write.csv(TB_new6, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", sep="/"))
 
-# TO DO- DO LAG VARIABLE CALCULATIONS ####
-#build closest River function #### 
-AR_mouth = c(-82.398480, 27.853702, "AR") #long, lat format
-HR_mouth = c(-82.461944, 27.937778, "HR")
-LMR_mouth = c(-82.486, 27.716, "LMR")
-rivers = rbind(AR_mouth, HR_mouth, LMR_mouth)
-TB_cat$closest_riv <- ""
+# . ####
+# Lag Variable Calculations ####
+# . ####
 
-closestRiver = function(catch, riv){
-  
-  for(i in 1:nrow(catch)){
-    cor = catch[i,62:63] #64,65
-    distance = distm(riv[,1:2], cor)
-    dcomb= cbind(riv, distance)
-    selec <- dcomb[dcomb[,4] == min(dcomb[,4]),]
-    selec_riv <- selec[3]
-    catch[i,64] <- selec_riv #change this index too
-  }
-  catch
-}
-
-test <- closestRiver(TB_cat, rivers)
+TB_cat_env <- read.csv("Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", header=T)
 
 #works
 # for(i in 1:nrow(TB_cat)){
@@ -450,68 +534,149 @@ test <- closestRiver(TB_cat, rivers)
 # TB_cat$closest_riv <- as.factor(TB_cat$closest_riv)
 # table(TB_cat$closest_riv)
 
-#build clean streamflow function that makes mean seasonal ####
+# TEST- build clean/create seasonal streamflow function that makes mean seasonal ####
 # seasonally averaged discharge (Purtlebaugh and Allen)
 #spring discharge ( March - May); align catch to river discharge that is closest based on lat and long 
 # mean discharge during March - May months (3,4,5); first must determine the approximate lat and long location for each river mouth 
-
+#mean discharge in cubic feet/second
 # For Tampa Bay - USGS 02301500 Alafia River at Lithia FL; 27,52, 19 (=27.8719) ; -82.12.41 (= -82.2114)
 # Hillsborough river USGS 02304500 Hillsborough River near Tampa FL; 28.01.25 (= 28.0236 ); -82.25.40 (=-82.4278)
 # Little manatee river USGS 02300500; 27.40.15 (=27.6708) ; -82.21.10 (= -82.3528)
 
-#mean discharge in cubic feet/second
+
+
 cleanSF_withSeason <- function(sf, name){
   sf <- sf[-1,]
   sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), yr=as.numeric(substr(Date, 1,4)), month=substr(Date, 6,7), year = ifelse(yr>=32, 1900+yr, 2000+yr)) %>% select(-c(Date,yr))
   colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "month", "year")
   sf <- sf %>% select(-c(agency, site_no, datetime, code))
   sf$value <- as.numeric(as.character(sf$value))
-  sf$season <- ifelse(sf$month %in% c("03","04","05"), "spring", ifelse(sf$month %in% c("06","07","08","09"), "summer", ifelse(sf$month %in% c("10","11","12"), "autumn", ifelse(sf$month %in% c("01","02"), "winter", "NA"))))
+  sf$season <- ifelse(sf$month %in% c("03","04","05"), "spring", ifelse(sf$month %in% c("06","07","08","09"), "summer", ifelse(sf$month %in% c("10","11", "12"), "autumn", ifelse(sf$month %in% c("01","02"), "winter", "NA"))))
   av_seas_sf <- aggregate(value ~ year + season, FUN= "mean", data=sf)
-  av_seas_sf <- subset(av_seas_sf, season =="spring")
+  #av_seas_sf <- subset(av_seas_sf, season =="spring")
   av_seas_sf$year <- as.numeric(av_seas_sf$year)
   colnames(av_seas_sf) <- c("year", "season", name)
   av_seas_sf
 } 
 
-tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
-tb_seas_AR$riv <- "AR"
-tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
-tb_seas_HR$riv <- "HR"
-tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cubic feet/second
-tb_seas_LMR$riv <- "LMR"
-tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
+# TEST build join seasonal streamflow function ####
+#MUSt update all index numbers with new ones 
 
+seasonal_streamflow= function(catch, seas_sf){
 
-#join the mean spring streamflow of the closest river mouth
-TB_cat$seasonal_dis <- 1
+TB_cat_env$spring_dis <- 1
+TB_cat_env$summer_dis <- 1
+TB_cat_env$autumn_dis <- 1
+TB_cat_env$winter_dis <- 1
+TB_cat_env$prev_autumn_dis <-1 
 
-for (i in 1:nrow(TB_cat)){
-  cat_month = TB_cat[i,30]
-  cat_year = TB_cat[i,59] #61
-  cat_riv = TB_cat[i,64] #66
-  seasonal_dis = TB_cat[i,65] #67
+for (i in 1:nrow(TB_cat_env)){
+  cat_month = TB_cat_env[i,30]
+  cat_year = TB_cat_env[i,59] #61
+  previous_year = TB_cat_env[i,59] - 1 #will this work? 
+  cat_riv = TB_cat_env[i,64] #66
 
-  if (cat_month >=6) {
+  if (cat_month >=6) { #assign spring flow to all months after entire spring season
     
     for (j in 1:nrow(tb_seas_All)){
       riv_year = tb_seas_All[j,1]
+      riv_seas = tb_seas_All[j,2]
       riv_dis = tb_seas_All[j,3]
       riv_name = tb_seas_All[j,4]
       
-      if((cat_riv==riv_name) & (cat_year == riv_year)){
-        TB_cat[i,65] <- riv_dis
+      if((riv_seas == "spring") & (cat_riv==riv_name) & (cat_year == riv_year)){
+        TB_cat_env[i,65] <- riv_dis
+      }
         
-      } 
-
+      }
+    }
+    
+  if (cat_month >=9) { #assign summer flow to all months after entire summer season
+    
+    for (j in 1:nrow(tb_seas_All)){
+      riv_year = tb_seas_All[j,1]
+      riv_seas = tb_seas_All[j,2]
+      riv_dis = tb_seas_All[j,3]
+      riv_name = tb_seas_All[j,4]
+      
+      if((riv_seas == "summer") & (cat_riv==riv_name) & (cat_year == riv_year)){
+        TB_cat_env[i,66] <- riv_dis
+      }
+    }
+  }
+    
+  if (cat_month >=11) { #assign autumn flow to all months after entire autumn season
+    
+    for (j in 1:nrow(tb_seas_All)){
+      riv_year = tb_seas_All[j,1]
+      riv_seas = tb_seas_All[j,2]
+      riv_dis = tb_seas_All[j,3]
+      riv_name = tb_seas_All[j,4]
+      
+      if((riv_seas == "autumn") & (cat_riv==riv_name) & (cat_year == riv_year)){
+        TB_cat_env[i,67] <- riv_dis
+      }
+    }
+  }  
+    
+  if (cat_month >=3 & cat_month <=5) { #assign winter flow to closer months that might be affected
+    
+    for (j in 1:nrow(tb_seas_All)){
+      riv_year = tb_seas_All[j,1]
+      riv_seas = tb_seas_All[j,2]
+      riv_dis = tb_seas_All[j,3]
+      riv_name = tb_seas_All[j,4]
+      
+      if((riv_seas == "winter") & (cat_riv==riv_name) & (cat_year == riv_year)){
+        TB_cat_env[i,68] <- riv_dis
+  }
+    }
   }
   
+  if (cat_month <=5) { #assign previous years autumn to early early months
+  
+    for (j in 1:nrow(tb_seas_All)){
+      riv_year = tb_seas_All[j,1]
+      riv_seas = tb_seas_All[j,2]
+      riv_dis = tb_seas_All[j,3]
+      riv_name = tb_seas_All[j,4]
+      
+      if((riv_seas == "autumn") & (cat_riv==riv_name) & (previous_year == riv_year)){
+        TB_cat_env[i,69] <- riv_dis
+        
+      }
+    }
   }
+  
 }
-  
-  
+ TB_cat_env
+}
+    
+    
+# TO-DO build clean/create seasonal CD (airtemp and palmerZ) #### 
 
 
+# TO-DO build join seasonal CD (airtemp and palmerZ) #### 
+
+
+# TO DO build join seasonal EV function (nitrogen, phos, watertemp, salinity) ####
+
+# TO DO build clean/create seasonal rainfall ####
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# TO DO merge seasonal streamflow ####    
 tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
 tb_seas_AR$riv <- "AR"
 tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
@@ -520,11 +685,12 @@ tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cub
 tb_seas_LMR$riv <- "LMR"
 tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
+seasonal_streamflow()
 
+# TO DO merge seasonal nitro, phos, watertemp, salinity ####
+# TO DO merge seasonal airtemp and palmerZ (CD) ####   
 
-
-
-
+# TO DO merge seasonal rainfall ####   
 
 
 
