@@ -415,56 +415,55 @@ TB_new9 <- TB_new9 %>% mutate(aten_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(S
 write.csv(TB_new9, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", sep="/"))
 
 # TO DO- DO LAG VARIABLE CALCULATIONS ####
+#build closest River function #### 
+AR_mouth = c(-82.398480, 27.853702, "AR") #long, lat format
+HR_mouth = c(-82.461944, 27.937778, "HR")
+LMR_mouth = c(-82.486, 27.716, "LMR")
+rivers = rbind(AR_mouth, HR_mouth, LMR_mouth)
+TB_cat$closest_riv <- ""
 
-#lagged streamflow ####
-# seasonally averaged discharge (Purtlebaugh and Allen)
-#spring discharge ( March - May) 
-# align catch to river discharge that is closest based on lat and long 
-# mean discharge during March - May months
-# first must determine the approximate lat and long location for each river 
+closestRiver = function(catch, riv){
+  
+  for(i in 1:nrow(catch)){
+    cor = catch[i,62:63] #64,65
+    distance = distm(riv[,1:2], cor)
+    dcomb= cbind(riv, distance)
+    selec <- dcomb[dcomb[,4] == min(dcomb[,4]),]
+    selec_riv <- selec[3]
+    catch[i,64] <- selec_riv #change this index too
+  }
+  catch
+}
 
-# For Tampa Bay - USGS 02301500 Alafia River at Lithia FL 
-# 27,52, 19 (=27.8719) ; -82.12.41 (= -82.2114)
+test <- closestRiver(TB_cat, rivers)
 
-# Hillsborough river USGS 02304500 Hillsborough River near Tampa FL
-# 28.01.25 (= 28.0236 ); -82.25.40 (=-82.4278)
+#works
+# for(i in 1:nrow(TB_cat)){
+# cor = TB_cat[i,62:63] #64,65
+# distance = distm(rivers[,1:2], cor)
+# dcomb= cbind(rivers, distance)
+# selec <- dcomb[dcomb[,4] == min(dcomb[,4]),]
+# selec_riv <- selec[3]
+# TB_cat[i,64] <- selec_riv #change this index too
+# }
 
-# Little manatee river USGS 02300500
-# 27.40.15 (=27.6708) ; -82.21.10 (= -82.3528)
-
-
-# months = 3,4,5 
-
-#for each observation I need to determine the closest spring average discharge based on the year and the closest river
-
-AR_mouth = as.numeric(c(-82.398480, 27.853702)) #long, lat format
-HR_mouth = as.numeric(c(-82.461944, 27.937778))
-LMR_mouth = as.numeric(c(-82.486, 27.716))
-
-riv = rbind(AR_mouth, HR_mouth, LMR_mouth)
-
-TB_cor = TB_new9[1,64:65]
-
-test = distm(riv, TB_cor) 
-
-test2= cbind(riv, test)
-
-selec <- test2[test2[,3] == min(test2[,3]),]
-selec_latlong <- selec[1:2]
-
-
-# if selec_latlong  == AR_mouth 
-# then
-
-selec_latlong == AR_mouth
-selec_latlong == HR_mouth
-
+# TB_cat$closest_riv <- as.factor(TB_cat$closest_riv)
+# table(TB_cat$closest_riv)
 
 #build clean streamflow function that makes mean seasonal ####
+# seasonally averaged discharge (Purtlebaugh and Allen)
+#spring discharge ( March - May); align catch to river discharge that is closest based on lat and long 
+# mean discharge during March - May months (3,4,5); first must determine the approximate lat and long location for each river mouth 
+
+# For Tampa Bay - USGS 02301500 Alafia River at Lithia FL; 27,52, 19 (=27.8719) ; -82.12.41 (= -82.2114)
+# Hillsborough river USGS 02304500 Hillsborough River near Tampa FL; 28.01.25 (= 28.0236 ); -82.25.40 (=-82.4278)
+# Little manatee river USGS 02300500; 27.40.15 (=27.6708) ; -82.21.10 (= -82.3528)
+
 #mean discharge in cubic feet/second
 cleanSF_withSeason <- function(sf, name){
-  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 1,4), month=substr(Date, 6,7))
-  colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
+  sf <- sf[-1,]
+  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), yr=as.numeric(substr(Date, 1,4)), month=substr(Date, 6,7), year = ifelse(yr>=32, 1900+yr, 2000+yr)) %>% select(-c(Date,yr))
+  colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "month", "year")
   sf <- sf %>% select(-c(agency, site_no, datetime, code))
   sf$value <- as.numeric(as.character(sf$value))
   sf$season <- ifelse(sf$month %in% c("03","04","05"), "spring", ifelse(sf$month %in% c("06","07","08","09"), "summer", ifelse(sf$month %in% c("10","11","12"), "autumn", ifelse(sf$month %in% c("01","02"), "winter", "NA"))))
@@ -475,7 +474,6 @@ cleanSF_withSeason <- function(sf, name){
   av_seas_sf
 } 
 
-
 tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
 tb_seas_AR$riv <- "AR"
 tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
@@ -485,77 +483,42 @@ tb_seas_LMR$riv <- "LMR"
 tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
 
-
-AR_mouth = as.numeric(c(-82.398480, 27.853702)) #long, lat format
-HR_mouth = as.numeric(c(-82.461944, 27.937778))
-LMR_mouth = as.numeric(c(-82.486, 27.716))
-
-riv = rbind(AR_mouth, HR_mouth, LMR_mouth)
-
-TB_cor = TB_new9[1,64:65]
-
-test = distm(riv, TB_cor) 
-
-test2= cbind(riv, test)
-
-selec <- test2[test2[,3] == min(test2[,3]),]
-selec_long <- selec[1]
-
-
-# if selec_latlong  == AR_mouth 
-# and the month in the main catch is greater than 5 then join the main catch with the 
-# seasonaly averaged tb_seas_AR based on the year match in the main catch and the seasonally averaged tb_seas_AR 
-
-
-#define closest River 
-TB_cat$ClosestRiver = ""
-for(i in 1:nrow(TB_cat))
-{ cor = TB_cat[i,64:65]
-
-distance = distm(riv, cor)
-dcomb= cbind(riv, distance)
-selec <- dcomb[dcomb[,3] == min(dcomb[,3]),]
-selec_long <- selec[1]
-
-  if (selec_long == AR_mouth[1]) {
-    TB_cat[i, 66 ] <- "AR"
-  }
-   if (selec_long == HR_mouth[1]) {
-     TB_cat[i,66] <- "HR"
-   }
-  if (selec_long == LMR_mouth[1]) {
-    TB_cat[i,66] <- "LMR"
-  }
-}
-
-# TB_cat$ClosestRiver <- as.factor(TB_cat$ClosestRiver)
-# table(TB_cat$ClosestRiver)
-
-
+#join the mean spring streamflow of the closest river mouth
 TB_cat$seasonal_dis <- 1
 
 for (i in 1:nrow(TB_cat)){
   cat_month = TB_cat[i,30]
-  cat_year = TB_cat[i,61]
-  cat_riv = TB_cat[i,66]
-  seasonal_dis = TB_cat[i,67]
-  
-  for (j in 1:nrow(tb_seas_All))
-    riv_year = tb_seas_All[j,1]
-    riv_name = tb_seas_All[j,4]
-    riv_dis = tb_seas_All[j,3]
+  cat_year = TB_cat[i,59] #61
+  cat_riv = TB_cat[i,64] #66
+  seasonal_dis = TB_cat[i,65] #67
+
+  if (cat_month >=6) {
     
-    if ((cat_month >=5) & (cat_year == riv_year) & (cat_riv == riv_name)){
-      seasonal_dis = riv_dis
-    }
-    TB_cat
+    for (j in 1:nrow(tb_seas_All)){
+      riv_year = tb_seas_All[j,1]
+      riv_dis = tb_seas_All[j,3]
+      riv_name = tb_seas_All[j,4]
+      
+      if((cat_riv==riv_name) & (cat_year == riv_year)){
+        TB_cat[i,65] <- riv_dis
+        
+      } 
+
+  }
+  
+  }
 }
+  
+  
 
 
-
-
-
-
+tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
+tb_seas_AR$riv <- "AR"
+tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
+tb_seas_HR$riv <- "HR"
+tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cubic feet/second
+tb_seas_LMR$riv <- "LMR"
+tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
 
 
