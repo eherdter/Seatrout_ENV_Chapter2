@@ -74,10 +74,7 @@ tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10))
 tb_hyd <- subset(read_sas("tb_yoy_cn_hyd.sas7bdat")) 
 tb_hyd <- tb_hyd[!duplicated(tb_hyd$Reference),]
 #tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth) %>% rename (NewRef=Reference) %>% mutate(newdepth = Secchi_depth/10)
-phys_shrt <- subset(tb_phys, Secchi_on_bottom == "NO") %>% mutate(scaled=Secchi_depth/10)
-
-
+tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 tb_phys$Reference <- as.character(tb_phys$Reference)
 
 tb <- left_join(tb, tb_hyd, by="Reference")
@@ -566,19 +563,18 @@ TB_shrt <- TB_cat_env[1:200,]
 
 for (i in 1:nrow(TB_shrt)){
   
-  
-  cat_month = TB_shrt[1,30]
-  cat_year = TB_shrt[1,61] 
-  previous_year = TB_shrt[1,61] - 1 #will this work: yes
-  cat_riv = TB_shrt[1,66] #66
+  cat_month = TB_shrt[i,30]
+  cat_year = TB_shrt[i,61] 
+  previous_year = TB_shrt[i,61] - 1 #will this work: yes
+  cat_riv = TB_shrt[i,66] #66
 
-  if (cat_month >=6) { #assign spring flow to all months after entire spring season
+  if (cat_month >=6) { 
     
     for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[i,1]
-      riv_seas = tb_seas_All[i,2]
-      riv_dis = tb_seas_All[i,3]
-      riv_name = tb_seas_All[i,4]
+      riv_year = tb_seas_All[j,1]
+      riv_seas = tb_seas_All[j,2]
+      riv_dis = tb_seas_All[j,3]
+      riv_name = tb_seas_All[j,4]
       
       if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "spring")){
         TB_shrt[i,80] <- riv_dis
