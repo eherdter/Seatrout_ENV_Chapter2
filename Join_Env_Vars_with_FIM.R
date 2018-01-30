@@ -1,7 +1,10 @@
 # About ####
+
+# TEST CODE FOLD FOR MIKE ####
 # R script for getting all of the FIM habitat and environmental variables together.
 # Some of this script borrows from Delta_Method_For_Producing_Nominal
 # Environmental variables collected by FIM include: Dissolved O2, Salinity, Temp, pH, secchi depth
+# test change for github demonstration
 
 # Set Working Directory ####
 #must change working directory for data when working on personal vs work computer
@@ -11,7 +14,8 @@ enviro_data = "U:/PhD_projectfiles/Raw_Data/Environmental_Data"
 enviro_data = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData"
 
 personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
-work_comp= "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
+work_comp = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
+phys_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
 phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
 
 # nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
@@ -70,7 +74,10 @@ tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10))
 tb_hyd <- subset(read_sas("tb_yoy_cn_hyd.sas7bdat")) 
 tb_hyd <- tb_hyd[!duplicated(tb_hyd$Reference),]
 #tb_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/tbm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+tb_phys <- read_sas(paste(phys_dat, "tbm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth) %>% rename (NewRef=Reference) %>% mutate(newdepth = Secchi_depth/10)
+phys_shrt <- subset(tb_phys, Secchi_on_bottom == "NO") %>% mutate(scaled=Secchi_depth/10)
+
+
 tb_phys$Reference <- as.character(tb_phys$Reference)
 
 tb <- left_join(tb, tb_hyd, by="Reference")
