@@ -559,7 +559,7 @@ TB_cat_env$autumn_dis <- 1
 TB_cat_env$winter_dis <- 1
 TB_cat_env$prev_autumn_dis <-1 
 
-TB_shrt <- TB_cat_env[1:200,]
+TB_shrt <- TB_cat_env[1:300,]
 
 for (i in 1:nrow(TB_shrt)){
   
@@ -576,19 +576,16 @@ for (i in 1:nrow(TB_shrt)){
       riv_dis = tb_seas_All[j,3]
       riv_name = tb_seas_All[j,4]
       
-      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "spring")){
+      if((cat_riv == riv_name) & (cat_year == riv_year) & (riv_seas == "spring")){
         TB_shrt[i,80] <- riv_dis
       }
         
       }
   }
-}
 
-
-
-
+#assign summer flow to all months after entire summer season
     
-  if (cat_month >=9) { #assign summer flow to all months after entire summer season
+  else if (cat_month >=9) { 
     
     for (j in 1:nrow(tb_seas_All)){
       riv_year = tb_seas_All[j,1]
@@ -596,13 +593,13 @@ for (i in 1:nrow(TB_shrt)){
       riv_dis = tb_seas_All[j,3]
       riv_name = tb_seas_All[j,4]
       
-      if((riv_seas == "summer") & (cat_riv==riv_name) & (cat_year == riv_year)){
-        TB_cat_env[i,66] <- riv_dis
+      if((cat_riv == riv_name) & (cat_year == riv_year) & (riv_seas == "summer")){
+        TB_cat_env[i,81] <- riv_dis
       }
     }
   }
-    
-  if (cat_month >=11) { #assign autumn flow to all months after entire autumn season
+  #assign autumn flow to all months after entire autumn season 
+ else if (cat_month >=11) { 
     
     for (j in 1:nrow(tb_seas_All)){
       riv_year = tb_seas_All[j,1]
@@ -611,12 +608,12 @@ for (i in 1:nrow(TB_shrt)){
       riv_name = tb_seas_All[j,4]
       
       if((riv_seas == "autumn") & (cat_riv==riv_name) & (cat_year == riv_year)){
-        TB_cat_env[i,67] <- riv_dis
+        TB_cat_env[i,82] <- riv_dis
       }
     }
   }  
-    
-  if (cat_month >=3 & cat_month <=5) { #assign winter flow to closer months that might be affected
+  #assign winter flow to closer months that might be affected
+ else if (cat_month >=3 & cat_month <=5) { 
     
     for (j in 1:nrow(tb_seas_All)){
       riv_year = tb_seas_All[j,1]
@@ -630,7 +627,8 @@ for (i in 1:nrow(TB_shrt)){
     }
   }
   
-  if (cat_month <=5) { #assign previous years autumn to early early months
+  #assign previous years autumn to early early months
+  else if (cat_month <=5) { 
   
     for (j in 1:nrow(tb_seas_All)){
       riv_year = tb_seas_All[j,1]
