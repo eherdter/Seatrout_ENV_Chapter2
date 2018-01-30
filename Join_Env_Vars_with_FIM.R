@@ -346,7 +346,7 @@ closestRiver = function(catch, riv){
   catch
 }
 
-# TEST - build join riverflow function ####
+#build join riverflow function ####
 
 TB_cat$river_flow <- 1
 
@@ -374,22 +374,6 @@ for (i in 1:nrow(TB_cat)){
 }
   catch
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #build clean rainfall function ####
@@ -446,12 +430,13 @@ rivers$riv_name <- as.character(rivers$riv_name)
 TB_cat$closest_riv <- ""
 TB_cat <- closestRiver(TB_cat, rivers)
 
-# WORKING merge riverflow ####
+# merge riverflow ####
 tb_av_AR <- cleanSF(tb_AR, "AR") #mean discharge in cubic feet/second
 tb_av_HR <- cleanSF(tb_HR, "HR") #mean discharge in cubic feet/second
 tb_av_LMR <- cleanSF(tb_LMR, "LMR")     #mean discharge in cubic feet/second
 
 streamfl <- rbind(tb_av_AR, tb_av_HR, tb_av_LMR)
+streamfl <- subset(streamfl, month >= min(unique(TB_cat$month)) & year>= min(unique(TB_cat$year)))
 
 
 TB_cat$river_flow <- 1
@@ -519,8 +504,9 @@ write.csv(TB_new6, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", sep
 # Lag Variable Calculations ####
 # . ####
 
-TB_cat_env <- read.csv("Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", header=T)
-
+TB_cat_env <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv",sep="/"), header=T)
+TB_cat_env <- TB_cat_env[,-1]
+TB_cat_env$closest_riv <- as.character(TB_cat_env$closest_riv)
 #works
 # for(i in 1:nrow(TB_cat)){
 # cor = TB_cat[i,62:63] #64,65
@@ -544,11 +530,10 @@ TB_cat_env <- read.csv("Seatrout_ENV_Chapter2/TB_all_env_no_lag.csv", header=T)
 # Little manatee river USGS 02300500; 27.40.15 (=27.6708) ; -82.21.10 (= -82.3528)
 
 
-
 cleanSF_withSeason <- function(sf, name){
   sf <- sf[-1,]
-  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), yr=as.numeric(substr(Date, 1,4)), month=substr(Date, 6,7), year = ifelse(yr>=32, 1900+yr, 2000+yr)) %>% select(-c(Date,yr))
-  colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "month", "year")
+  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=as.numeric(substr(Date, 1,4)), month=substr(Date, 6,7)) %>% select(-c(Date))
+  colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "year", "month")
   sf <- sf %>% select(-c(agency, site_no, datetime, code))
   sf$value <- as.numeric(as.character(sf$value))
   sf$season <- ifelse(sf$month %in% c("03","04","05"), "spring", ifelse(sf$month %in% c("06","07","08","09"), "summer", ifelse(sf$month %in% c("10","11", "12"), "autumn", ifelse(sf$month %in% c("01","02"), "winter", "NA"))))
@@ -559,7 +544,7 @@ cleanSF_withSeason <- function(sf, name){
   av_seas_sf
 } 
 
-# TEST build join seasonal streamflow function ####
+# WORKING/TESTING build join seasonal streamflow function ####
 #MUSt update all index numbers with new ones 
 
 seasonal_streamflow= function(catch, seas_sf){
@@ -570,26 +555,35 @@ TB_cat_env$autumn_dis <- 1
 TB_cat_env$winter_dis <- 1
 TB_cat_env$prev_autumn_dis <-1 
 
-for (i in 1:nrow(TB_cat_env)){
-  cat_month = TB_cat_env[i,30]
-  cat_year = TB_cat_env[i,59] #61
-  previous_year = TB_cat_env[i,59] - 1 #will this work? 
-  cat_riv = TB_cat_env[i,64] #66
+TB_shrt <- TB_cat_env[1:200,]
+
+for (i in 1:nrow(TB_shrt)){
+  
+  
+  cat_month = TB_shrt[1,30]
+  cat_year = TB_shrt[1,61] 
+  previous_year = TB_shrt[1,61] - 1 #will this work: yes
+  cat_riv = TB_shrt[1,66] #66
 
   if (cat_month >=6) { #assign spring flow to all months after entire spring season
     
     for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[j,1]
-      riv_seas = tb_seas_All[j,2]
-      riv_dis = tb_seas_All[j,3]
-      riv_name = tb_seas_All[j,4]
+      riv_year = tb_seas_All[i,1]
+      riv_seas = tb_seas_All[i,2]
+      riv_dis = tb_seas_All[i,3]
+      riv_name = tb_seas_All[i,4]
       
-      if((riv_seas == "spring") & (cat_riv==riv_name) & (cat_year == riv_year)){
-        TB_cat_env[i,65] <- riv_dis
+      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "spring")){
+        TB_shrt[i,80] <- riv_dis
       }
         
       }
-    }
+  }
+}
+
+
+
+
     
   if (cat_month >=9) { #assign summer flow to all months after entire summer season
     
