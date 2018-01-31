@@ -678,9 +678,9 @@ join_seas
 }
 
 
-# TO-DO build join seasonal CD (airtemp and palmerZ) #### 
+#build join seasonal CD (airtemp and palmerZ) #### 
 
-TB_shrt <- TB_cat_env_new[300:400,1:83] #brings it back to original configuration
+TB_shrt <- TB_cat_new[1000:4000,] #brings it back to original configuration
 
 join_seasCD= function(catch, seasonal_CD){
   
@@ -741,6 +741,7 @@ join_seasCD= function(catch, seasonal_CD){
         }
       }
     }
+  
     #assign summer flow to all months after entire summer season
     if (cat_month >=9) { 
       
@@ -789,6 +790,7 @@ join_seasCD= function(catch, seasonal_CD){
         }
       }
     }
+  
     #assign previous years autumn to early early months
     if (cat_month <=5) { 
       
@@ -855,11 +857,13 @@ TB_cat_new <- join_seas_streamflow(TB_cat_env, tb_seas_All)
 #test <- TB_cat_env_new[sample(nrow(TB_cat_new),50), ]
 
 
-# WORK HERE-test   TO DO merge seasonal airtemp and palmerZ (CD) ####  
+# WORK HERE-test_set   TO DO merge seasonal airtemp and palmerZ (CD) ####  
 
 seasonal_CD <- clean_seasCD(tb_PZ, tb_maxT, tb_minT)
 
-test < - join_seasCD(TB_cat_new, seasonal_CD)
+test <- join_seasCD(TB_cat_new[1:5000,], seasonal_CD)
+
+test_set <- test[sample(nrow(test), 10),]
 
 # TO DO merge seasonal rainfall ####   
 # TO DO merge seasonal nitro, phos, watertemp, salinity ####
