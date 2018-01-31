@@ -352,7 +352,7 @@ closestRiver = function(catch, riv){
 
 #build join riverflow function ####
 
-TB_cat$river_flow <- 1
+#TB_cat$river_flow <- 1
 
 join_riverflow = function(catch, streamflow){
 
@@ -524,7 +524,7 @@ TB_cat_env$closest_riv <- as.character(TB_cat_env$closest_riv)
 # TB_cat$closest_riv <- as.factor(TB_cat$closest_riv)
 # table(TB_cat$closest_riv)
 
-# TEST- build clean/create seasonal streamflow function that makes mean seasonal ####
+# build clean/create seasonal streamflow function that makes mean seasonal ####
 # seasonally averaged discharge (Purtlebaugh and Allen)
 #spring discharge ( March - May); align catch to river discharge that is closest based on lat and long 
 # mean discharge during March - May months (3,4,5); first must determine the approximate lat and long location for each river mouth 
@@ -548,107 +548,136 @@ cleanSF_withSeason <- function(sf, name){
   av_seas_sf
 } 
 
-# WORKING/TESTING build join seasonal streamflow function ####
+# ERROR DEBUG- build join seasonal streamflow function ####
 #MUSt update all index numbers with new ones 
 
 seasonal_streamflow= function(catch, seas_sf){
 
-TB_cat_env$spring_dis <- 1
-TB_cat_env$summer_dis <- 1
-TB_cat_env$autumn_dis <- 1
-TB_cat_env$winter_dis <- 1
-TB_cat_env$prev_autumn_dis <-1 
+catch$spring_dis <- NA
+catch$summer_dis <- NA
+catch$winter_dis <- NA
+catch$prev_autumn_dis <-NA 
 
-TB_shrt <- TB_cat_env[1:300,]
-
-for (i in 1:nrow(TB_shrt)){
+for (i in 1:nrow(catch)){
   
-  cat_month = TB_shrt[i,30]
-  cat_year = TB_shrt[i,61] 
-  previous_year = TB_shrt[i,61] - 1 #will this work: yes
-  cat_riv = TB_shrt[i,66] #66
+  cat_month = catch[i,30]
+  cat_year = catch[i,61] 
+  previous_year = catch[i,61] - 1 #will this work: yes
+  cat_riv = catch[i,66] #66
 
   if (cat_month >=6) { 
     
-    for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[j,1]
-      riv_seas = tb_seas_All[j,2]
-      riv_dis = tb_seas_All[j,3]
-      riv_name = tb_seas_All[j,4]
+    for (j in 1:nrow(seas_sf)){
+      riv_year = seas_sf[j,1]
+      riv_seas = seas_sf[j,2]
+      riv_dis = seas_sf[j,3]
+      riv_name = seas_sf[j,4]
       
       if((cat_riv == riv_name) & (cat_year == riv_year) & (riv_seas == "spring")){
-        TB_shrt[i,80] <- riv_dis
+        catch[i,80] <- riv_dis
       }
         
-      }
+    }
   }
 
 #assign summer flow to all months after entire summer season
     
-  else if (cat_month >=9) { 
+  if (cat_month >=9) { 
     
-    for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[j,1]
-      riv_seas = tb_seas_All[j,2]
-      riv_dis = tb_seas_All[j,3]
-      riv_name = tb_seas_All[j,4]
+    for (j in 1:nrow(seas_sf)){
+      riv_year = seas_sf[j,1]
+      riv_seas = seas_sf[j,2]
+      riv_dis = seas_sf[j,3]
+      riv_name = seas_sf[j,4]
       
       if((cat_riv == riv_name) & (cat_year == riv_year) & (riv_seas == "summer")){
-        TB_cat_env[i,81] <- riv_dis
+        catch[i,81] <- riv_dis
       }
     }
   }
-  #assign autumn flow to all months after entire autumn season 
- else if (cat_month >=11) { 
-    
-    for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[j,1]
-      riv_seas = tb_seas_All[j,2]
-      riv_dis = tb_seas_All[j,3]
-      riv_name = tb_seas_All[j,4]
-      
-      if((riv_seas == "autumn") & (cat_riv==riv_name) & (cat_year == riv_year)){
-        TB_cat_env[i,82] <- riv_dis
-      }
-    }
-  }  
+  
+ #  #assign autumn flow to all months after entire autumn season 
+ # if (cat_month >=11) { 
+ #    
+ #    for (j in 1:nrow(seas_sf)){
+ #      riv_year = seas_sf[j,1]
+ #      riv_seas = seas_sf[j,2]
+ #      riv_dis = seas_sf[j,3]
+ #      riv_name = seas_sf[j,4]
+ #      
+ #      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "autumn")){
+ #        catch[i,82] <- riv_dis
+ #      }
+ #    }
+ # }  
+ 
   #assign winter flow to closer months that might be affected
- else if (cat_month >=3 & cat_month <=5) { 
+  if (cat_month >=3 & cat_month <=5) { 
     
-    for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[j,1]
-      riv_seas = tb_seas_All[j,2]
-      riv_dis = tb_seas_All[j,3]
-      riv_name = tb_seas_All[j,4]
+    for (j in 1:nrow(seas_sf)){
+      riv_year = seas_sf[j,1]
+      riv_seas = seas_sf[j,2]
+      riv_dis = seas_sf[j,3]
+      riv_name = seas_sf[j,4]
       
-      if((riv_seas == "winter") & (cat_riv==riv_name) & (cat_year == riv_year)){
-        TB_cat_env[i,68] <- riv_dis
-  }
+      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "winter")){
+        catch[i,82] <- riv_dis
+      }
     }
   }
-  
+
   #assign previous years autumn to early early months
-  else if (cat_month <=5) { 
+   if (cat_month <=5) { 
   
-    for (j in 1:nrow(tb_seas_All)){
-      riv_year = tb_seas_All[j,1]
-      riv_seas = tb_seas_All[j,2]
-      riv_dis = tb_seas_All[j,3]
-      riv_name = tb_seas_All[j,4]
+    for (j in 1:nrow(seas_sf)){
+      riv_year = seas_sf[j,1]
+      riv_seas = seas_sf[j,2]
+      riv_dis = seas_sf[j,3]
+      riv_name = seas_sf[j,4]
       
-      if((riv_seas == "autumn") & (cat_riv==riv_name) & (previous_year == riv_year)){
-        TB_cat_env[i,69] <- riv_dis
+      if((cat_riv==riv_name) & (previous_year == riv_year) & (riv_seas == "autumn")){
+        catch[i,83] <- riv_dis
         
       }
     }
   }
   
 }
- TB_cat_env
+ catch
 }
     
     
-# TO-DO build clean/create seasonal CD (airtemp and palmerZ) #### 
+# WORKING/TESTING build clean/create seasonal CD (airtemp and palmerZ) #### 
+
+# env= tb_PZ
+#env2= tb_maxT
+#env3= tb_minT
+
+# turn to env
+
+seasonalCD= function(env, env1, env2){
+
+tb_PZ <- tb_PZ %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly) %>% select(-Date)
+tb_PZ$month <- as.numeric(tb_PZ$month)
+tb_PZ$year <- as.numeric(tb_PZ$year)
+
+tb_maxT <- tb_maxT %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% select(-Date)
+tb_maxT$month <- as.numeric(tb_maxT$month)
+tb_maxT$year <- as.numeric(tb_maxT$year)
+
+tb_minT <- tb_minT %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MinT_val =Value, MinT_anom = Anomaly)%>% select(-Date)
+tb_minT$month <- as.numeric(tb_minT$month)
+tb_minT$year <- as.numeric(tb_minT$year)
+
+test <- left_join(tb_PZ, tb_maxT, by=c("year", "month")) %>% left_join(tb_minT, by=c("year", "month"))
+test$season <- ifelse(test$month %in% c("3","4","5"), "spring", ifelse(test$month %in% c("6","7","8","9"), "summer", ifelse(test$month %in% c("10","11", "12"), "autumn", ifelse(test$month %in% c("1","2"), "winter", "NA"))))
+test_seas <- aggregate(cbind(Z_val, Z_anom, MaxT_val, MaxT_anom, MinT_val, MinT_anom) ~ year + season, FUN= "mean", data=test)
+
+test_seas
+}
+
+
+
 
 
 # TO-DO build join seasonal CD (airtemp and palmerZ) #### 
@@ -657,19 +686,6 @@ for (i in 1:nrow(TB_shrt)){
 # TO DO build join seasonal EV function (nitrogen, phos, watertemp, salinity) ####
 
 # TO DO build clean/create seasonal rainfall ####
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # TO DO merge seasonal streamflow ####    
 tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
@@ -680,7 +696,13 @@ tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cub
 tb_seas_LMR$riv <- "LMR"
 tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
-seasonal_streamflow()
+TB_cat_env_new <- seasonal_streamflow(TB_cat_env[1:1000,], tb_seas_All)
+
+
+
+
+
+
 
 # TO DO merge seasonal nitro, phos, watertemp, salinity ####
 # TO DO merge seasonal airtemp and palmerZ (CD) ####   
