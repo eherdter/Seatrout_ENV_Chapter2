@@ -548,10 +548,11 @@ cleanSF_withSeason <- function(sf, name){
   av_seas_sf
 } 
 
-# ERROR DEBUG- build join seasonal streamflow function ####
-#MUSt update all index numbers with new ones 
+# build join seasonal streamflow function ####
+#throws this error:   restarting interrupted promise evaluation 
+# not sure if its a problem but I have pulled a random subsample 
 
-seasonal_streamflow= function(catch, seas_sf){
+join_seas_streamflow= function(catch, seas_sf){
 
 catch$spring_dis <- NA
 catch$summer_dis <- NA
@@ -647,7 +648,7 @@ for (i in 1:nrow(catch)){
 }
     
     
-# WORKING/TESTING build clean/create seasonal CD (airtemp and palmerZ) #### 
+# build clean/create seasonal CD (airtemp and palmerZ) #### 
 
 # env= tb_PZ
 #env2= tb_maxT
@@ -655,39 +656,190 @@ for (i in 1:nrow(catch)){
 
 # turn to env
 
-seasonalCD= function(env, env1, env2){
+clean_seasCD= function(env, env2, env3){
 
-tb_PZ <- tb_PZ %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly) %>% select(-Date)
-tb_PZ$month <- as.numeric(tb_PZ$month)
-tb_PZ$year <- as.numeric(tb_PZ$year)
+env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly) %>% select(-Date)
+env$month <- as.numeric(env$month)
+env$year <- as.numeric(env$year)
 
-tb_maxT <- tb_maxT %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% select(-Date)
-tb_maxT$month <- as.numeric(tb_maxT$month)
-tb_maxT$year <- as.numeric(tb_maxT$year)
+env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% select(-Date)
+env2$month <- as.numeric(env2$month)
+env2$year <- as.numeric(env2$year)
 
-tb_minT <- tb_minT %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MinT_val =Value, MinT_anom = Anomaly)%>% select(-Date)
-tb_minT$month <- as.numeric(tb_minT$month)
-tb_minT$year <- as.numeric(tb_minT$year)
+env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MinT_val =Value, MinT_anom = Anomaly)%>% select(-Date)
+env3$month <- as.numeric(env3$month)
+env3$year <- as.numeric(env3$year)
 
-test <- left_join(tb_PZ, tb_maxT, by=c("year", "month")) %>% left_join(tb_minT, by=c("year", "month"))
-test$season <- ifelse(test$month %in% c("3","4","5"), "spring", ifelse(test$month %in% c("6","7","8","9"), "summer", ifelse(test$month %in% c("10","11", "12"), "autumn", ifelse(test$month %in% c("1","2"), "winter", "NA"))))
-test_seas <- aggregate(cbind(Z_val, Z_anom, MaxT_val, MaxT_anom, MinT_val, MinT_anom) ~ year + season, FUN= "mean", data=test)
+join <- left_join(env, env2, by=c("year", "month")) %>% left_join(env3, by=c("year", "month"))
+join$season <- ifelse(join$month %in% c("3","4","5"), "spring", ifelse(join$month %in% c("6","7","8","9"), "summer", ifelse(join$month %in% c("10","11", "12"), "autumn", ifelse(join$month %in% c("1","2"), "winter", "NA"))))
+join_seas <- aggregate(cbind(Z_val, Z_anom, MaxT_val, MaxT_anom, MinT_val, MinT_anom) ~ year + season, FUN= "mean", data=join)
 
-test_seas
+join_seas
 }
-
-
-
 
 
 # TO-DO build join seasonal CD (airtemp and palmerZ) #### 
 
+TB_shrt <- TB_cat_env_new[300:400,1:83] #brings it back to original configuration
 
-# TO DO build join seasonal EV function (nitrogen, phos, watertemp, salinity) ####
+join_seasCD= function(catch, seasonal_CD){
+  
+  catch$spring_Z_val <- NA #84
+  catch$spring_Z_anom <- NA #85
+  catch$spring_MaxT_val <- NA #86
+  catch$spring_MaxT_anom <- NA #87
+  catch$spring_MinT_val <- NA #88
+  catch$spring_MinT_anom <- NA #89
+  
+  catch$summer_Z_val <- NA #90
+  catch$summer_Z_anom <- NA #91
+  catch$summer_MaxT_val <- NA #92
+  catch$summer_MaxT_anom <- NA #93
+  catch$summer_MinT_val <- NA #94
+  catch$summer_MinT_anom <- NA #95
+  
+  catch$winter_Z_val <- NA #96
+  catch$winter_Z_anom <- NA #97
+  catch$winter_MaxT_val <- NA #98
+  catch$winter_MaxT_anom <- NA #99
+  catch$winter_MinT_val <- NA #100
+  catch$winter_MinT_anom <- NA #101
+  
+  catch$prev_autumn_Z_val <- NA #102
+  catch$prev_autumn_Z_anom <- NA #103
+  catch$prev_autumn_MaxT_val <- NA #104
+  catch$prev_autumn_MaxT_anom <- NA #105
+  catch$prev_autumn_MinT_val <- NA #106
+  catch$prev_autumn_MinT_anom <- NA #107
+
+  for (i in 1:nrow(catch)){
+    
+    cat_month = catch[i,30]
+    cat_year = catch[i,61] 
+    previous_year = catch[i,61] - 1 #will this work: yes
+    
+    if (cat_month >=6) { 
+      
+      for (j in 1:nrow(seasonal_CD)){
+        CD_year = seasonal_CD[j,1]
+        CD_seas = seasonal_CD[j,2]
+        CD_zval = seasonal_CD[j,3]
+        CD_zanom = seasonal_CD[j,4]
+        CD_maxTval = seasonal_CD[j,5]
+        CD_maxTanom = seasonal_CD[j,6]
+        CD_minTval = seasonal_CD[j,7]
+        CD_minTanom = seasonal_CD[j,8]
+        
+        if((cat_year == CD_year) & (CD_seas == "spring")){
+          catch[i,84] <- CD_zval
+          catch[i,85] <- CD_zanom
+          catch[i,86] <- CD_maxTval
+          catch[i,87] <- CD_maxTanom
+          catch[i,88] <- CD_minTval
+          catch[i,89] <- CD_minTanom
+         
+        }
+      }
+    }
+    #assign summer flow to all months after entire summer season
+    if (cat_month >=9) { 
+      
+      for (j in 1:nrow(seasonal_CD)){
+        CD_year = seasonal_CD[j,1]
+        CD_seas = seasonal_CD[j,2]
+        CD_zval = seasonal_CD[j,3]
+        CD_zanom = seasonal_CD[j,4]
+        CD_maxTval = seasonal_CD[j,5]
+        CD_maxTanom = seasonal_CD[j,6]
+        CD_minTval = seasonal_CD[j,7]
+        CD_minTanom = seasonal_CD[j,8]
+        
+        if((cat_year == CD_year) & (CD_seas == "summer")){
+          catch[i,90] <- CD_zval
+          catch[i,91] <- CD_zanom
+          catch[i,92] <- CD_maxTval
+          catch[i,93] <- CD_maxTanom
+          catch[i,94] <- CD_minTval
+          catch[i,95] <- CD_minTanom
+        }
+      }
+    }
+  
+    #assign winter flow to closer months that might be affected
+    if (cat_month >=3 & cat_month <=5) { 
+      
+      for (j in 1:nrow(seasonal_CD)){
+        CD_year = seasonal_CD[j,1]
+        CD_seas = seasonal_CD[j,2]
+        CD_zval = seasonal_CD[j,3]
+        CD_zanom = seasonal_CD[j,4]
+        CD_maxTval = seasonal_CD[j,5]
+        CD_maxTanom = seasonal_CD[j,6]
+        CD_minTval = seasonal_CD[j,7]
+        CD_minTanom = seasonal_CD[j,8]
+        
+        if((cat_year == CD_year) & (CD_seas == "winter")){
+          catch[i,96] <- CD_zval
+          catch[i,97] <- CD_zanom
+          catch[i,98] <- CD_maxTval
+          catch[i,99] <- CD_maxTanom
+          catch[i,100] <- CD_minTval
+          catch[i,101] <- CD_minTanom
+          
+        }
+      }
+    }
+    #assign previous years autumn to early early months
+    if (cat_month <=5) { 
+      
+      for (j in 1:nrow(seasonal_CD)){
+        CD_year = seasonal_CD[j,1]
+        CD_seas = seasonal_CD[j,2]
+        CD_zval = seasonal_CD[j,3]
+        CD_zanom = seasonal_CD[j,4]
+        CD_maxTval = seasonal_CD[j,5]
+        CD_maxTanom = seasonal_CD[j,6]
+        CD_minTval = seasonal_CD[j,7]
+        CD_minTanom = seasonal_CD[j,8]
+        
+        if((previous_year == CD_year) & (CD_seas == "autumn")){
+          catch[i,102] <- CD_zval
+          catch[i,103] <- CD_zanom
+          catch[i,104] <- CD_maxTval
+          catch[i,105] <- CD_maxTanom
+          catch[i,106] <- CD_minTval
+          catch[i,107] <- CD_minTanom
+          
+        }
+      }
+    }
+  }
+  catch
+}
 
 # TO DO build clean/create seasonal rainfall ####
 
-# TO DO merge seasonal streamflow ####    
+clean_seasRF <- function(rf, name) {
+  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
+  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
+  rf$season <- ifelse(rf$month %in% c("3","4","5"), "spring", ifelse(rf$month %in% c("6","7","8","9"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("1","2"), "winter", "NA"))))
+  
+  
+  tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+  tot_rf$month <- as.numeric(tot_rf$month)
+  tot_rf$year <- as.numeric(tot_rf$year)
+  #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
+  colnames(tot_rf) <- c("year", "month", name)
+  tot_rf
+}
+
+
+# TO DO build join seasonal EV function (nitrogen, phos, watertemp, salinity) ####
+
+
+
+
+#merge seasonal streamflow ####    
 tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
 tb_seas_AR$riv <- "AR"
 tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
@@ -696,18 +848,23 @@ tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cub
 tb_seas_LMR$riv <- "LMR"
 tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
-TB_cat_env_new <- seasonal_streamflow(TB_cat_env[1:1000,], tb_seas_All)
+TB_cat_new <- join_seas_streamflow(TB_cat_env, tb_seas_All)
+
+#select some rows at random to do by-hand checks to make sure this works
+
+#test <- TB_cat_env_new[sample(nrow(TB_cat_new),50), ]
 
 
+# WORK HERE-test   TO DO merge seasonal airtemp and palmerZ (CD) ####  
 
+seasonal_CD <- clean_seasCD(tb_PZ, tb_maxT, tb_minT)
 
-
-
-
-# TO DO merge seasonal nitro, phos, watertemp, salinity ####
-# TO DO merge seasonal airtemp and palmerZ (CD) ####   
+test < - join_seasCD(TB_cat_new, seasonal_CD)
 
 # TO DO merge seasonal rainfall ####   
+# TO DO merge seasonal nitro, phos, watertemp, salinity ####
+
+
 
 
 
