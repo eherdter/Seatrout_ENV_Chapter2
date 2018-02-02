@@ -20,14 +20,14 @@ ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))%>%
 
 all <- rbind(tb, ch, ir, jx, ap, ck)
 
-#Basic plot
+#Here- Basic plot####
 map('state', xlim=c(-86, -80), y=c(26,31), col="gray90", fill=TRUE)
 points(all$Longitude, all$Latitude, pch=1, col='black', cex=0.35)
 
 
 
 
-
+#world map####
 library(rworldmap)
 newmap <- getMap(resolution="high")
 plot(newmap, xlim=c(-82.5, -81), ylim=c(26, 27))
@@ -41,16 +41,20 @@ plot = ggplot() + geom_polygon(data=florida, aes(x=long, y=lat, group=group),fil
 plot + coord_fixed(xlim=c(-82.54, -81), ylim=c(27, 29), ratio=1.3)
 
 
+# cool maps with ggplot and google maps ####
 sbbox <- make_bbox(lon=all$Longitude, lat=all$Latitude, f=.1)
 sq_map <- get_map(location = sbbox, maptype = "watercolor", source = "stamen")
-
-
 #sq_map <- get_map(location = sbbox, maptype = "terrain", source = "stamen")
 
 ggmap(sq_map) +geom_point(data=all, mapping=aes(x=Longitude, y=Latitude), color="red")
 
 
+#example to create inset maps with ggplot2 ####
 #http://r-nold.blogspot.com/2014/06/creating-inset-map-with-ggplot2.html
+
+
+
+#add scale bars to maps ####
 
 #https://stackoverflow.com/questions/39067838/parsimonious-way-to-add-north-arrow-and-scale-bar-to-ggmap
 # scalebar = function(x,y,w,n,d, units="km"){
