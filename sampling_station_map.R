@@ -4,16 +4,19 @@ library(maps)
 library(mapdata)
 library(ggplot2)
 library(ggmap)
+library(raster)
+library(gridExtra)
+library(dplyr)
 
-tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% select(Longitude, Latitude)
+tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% dplyr::select(number, Longitude, Latitude)
 
 
 
-ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% mutate(bUnk=bunk) %>% select(-bunk) %>% select(Longitude, Latitude)
-ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) %>% select(Longitude, Latitude)
-jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) %>% select(Longitude, Latitude)
-ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) %>% select(Longitude, Latitude)
-ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))%>% select(Longitude, Latitude)
+ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% dplyr::mutate(bUnk=bunk) %>% dplyr::select(-bunk) %>% dplyr::select(number,Longitude, Latitude)
+ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) %>% dplyr::select(number,Longitude, Latitude)
+jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) %>% dplyr::select(number,Longitude, Latitude)
+ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% dplyr::mutate(bUnk=bunk) %>% dplyr::select(-bunk) %>% dplyr::select(number,Longitude, Latitude)
+ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))%>% dplyr::select(number,Longitude, Latitude)
 
 
 
@@ -41,6 +44,9 @@ plot = ggplot() + geom_polygon(data=florida, aes(x=long, y=lat, group=group),fil
 plot + coord_fixed(xlim=c(-82.54, -81), ylim=c(27, 29), ratio=1.3)
 
 
+
+
+
 # cool maps with ggplot and google maps ####
 sbbox <- make_bbox(lon=all$Longitude, lat=all$Latitude, f=.1)
 sq_map <- get_map(location = sbbox, maptype = "watercolor", source = "stamen")
@@ -51,6 +57,16 @@ ggmap(sq_map) +geom_point(data=all, mapping=aes(x=Longitude, y=Latitude), color=
 
 #example to create inset maps with ggplot2 ####
 #http://r-nold.blogspot.com/2014/06/creating-inset-map-with-ggplot2.html
+
+
+#main map
+plot = ggplot() + geom_polygon(data=florida, aes(x=long+0.1, y=lat-0.1, group=group), fill="#9ecae1")+
+  geom_polygon(data=florida, aes(x=long, y=lat, group=group),color="grey10", fill ="#fff7bc") + 
+  geom_point(data=all, aes(x=Longitude, y=Latitude), size=0.5, color="grey20") + #
+  coord_equal()+theme_bw()+xlab("")+ylab("") 
+
+
+#inset map
 
 
 
