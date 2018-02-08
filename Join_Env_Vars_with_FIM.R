@@ -680,7 +680,7 @@ join_seas
 
 #build join seasonal CD (airtemp and palmerZ) #### 
 
-TB_shrt <- TB_cat_new[1000:4000,] #brings it back to original configuration
+#TB_shrt <- TB_cat_new[1000:4000,] #brings it back to original configuration
 
 join_seasCD= function(catch, seasonal_CD){
   
@@ -819,20 +819,88 @@ join_seasCD= function(catch, seasonal_CD){
   catch
 }
 
-# TO DO build clean/create seasonal rainfall ####
+#build clean/create seasonal rainfall ####
 
-clean_seasRF <- function(rf, name) {
+clean_seasRF <- function(rf) {
+  rf <- tb_rf
   rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
-  rf$season <- ifelse(rf$month %in% c("3","4","5"), "spring", ifelse(rf$month %in% c("6","7","8","9"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("1","2"), "winter", "NA"))))
-  
-  
+  rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
   tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
-  tot_rf$month <- as.numeric(tot_rf$month)
   tot_rf$year <- as.numeric(tot_rf$year)
-  #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
-  colnames(tot_rf) <- c("year", "month", name)
+  colnames(tot_rf) <- c("year", "season", "total_rf")
   tot_rf
+}
+
+#build join seasonal rainfall ####
+
+join_seasRF= function(catch, seasonal_RF){
+  
+  catch$spring_RF <- NA #108
+  catch$summer_RF <- NA #109
+  catch$winter_RF <- NA #110
+  catch$prev_autumn_RF <- NA #111
+  
+  for (i in 1:nrow(catch)){
+    
+    cat_month = catch[i,30]
+    cat_year = catch[i,61] 
+    previous_year = catch[i,61] - 1 #will this work: yes
+    
+    if (cat_month >=6) { 
+      
+      for (j in 1:nrow(seasonal_RF)){
+        RF_year = seasonal_RF[j,1]
+        RF_seas = seasonal_RF[j,2]
+        RF_precip = seasonal_RF[j,3]
+           
+        if((cat_year == RF_year) & (RF_seas == "spring")){
+          catch[i,108] <- RF_precip
+        }
+      }
+    }
+    
+    #assign summer flow to all months after entire summer season
+    if (cat_month >=9) { 
+      
+      for (j in 1:nrow(seasonal_RF)){
+        RF_year = seasonal_RF[j,1]
+        RF_seas = seasonal_RF[j,2]
+        RF_precip = seasonal_RF[j,3]
+            
+        if((cat_year == RF_year) & (RF_seas == "summer")){
+          catch[i,109] <- RF_precip
+        }
+      }
+    }
+    #assign winter flow to closer months that might be affected
+    if (cat_month >=3 & cat_month <=5) { 
+      
+      for (j in 1:nrow(seasonal_RF)){
+        RF_year = seasonal_RF[j,1]
+        RF_seas = seasonal_RF[j,2]
+        RF_precip = seasonal_RF[j,3]
+           
+        if((cat_year == RF_year) & (RF_seas == "winter")){
+          catch[i,110] <- RF_precip
+        }
+      }
+    }
+    #assign previous years autumn to early early months
+    if (cat_month <=5) { 
+      
+      for (j in 1:nrow(seasonal_RF)){
+        RF_year = seasonal_RF[j,1]
+        RF_seas = seasonal_RF[j,2]
+        RF_precip = seasonal_RF[j,3]
+        
+        if((previous_year == RF_year) & (RF_seas == "autumn")){
+          catch[i,111] <- RF_precip
+        }
+      }
+    }
+  }
+  catch
 }
 
 
@@ -856,16 +924,26 @@ TB_cat_new <- join_seas_streamflow(TB_cat_env, tb_seas_All)
 
 #test <- TB_cat_env_new[sample(nrow(TB_cat_new),50), ]
 
-
-# WORK HERE-test_set   TO DO merge seasonal airtemp and palmerZ (CD) ####  
+#merge seasonal_CD airtemp and palmerZ ####  
 
 seasonal_CD <- clean_seasCD(tb_PZ, tb_maxT, tb_minT)
 
-test <- join_seasCD(TB_cat_new[1:5000,], seasonal_CD)
+TB_cat_new2 <- join_seasCD(TB_cat_new, seasonal_CD)
 
-test_set <- test[sample(nrow(test), 10),]
+#test_set <- TB_cat_new2[,30:107][sample(nrow(TB_cat_new2), 10),]
 
-# TO DO merge seasonal rainfall ####   
+# merge seasonal rainfall #### 
+
+tb_seas_rf <- clean_seasRF(tb_rf)
+
+TB_cat_env3 <- join_seasRF(TB_cat_new2, tb_seas_rf)
+
+#test_set <- TB_cat_env3[,30:111][sample(nrow(TB_cat_env3), 10),]
+
+
+
+
+
 # TO DO merge seasonal nitro, phos, watertemp, salinity ####
 
 
