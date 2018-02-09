@@ -44,6 +44,7 @@ library(dplyr)
 library(geosphere)
 library(cluster)
 library(tictoc)
+library(dplyr) 
 
 # About- Import Data Sets ####
 # These data sets were produced using the spp_comb_5_13_EG_2bays_yoy_2015_EHedits.sas program which is stored in my scratch folder
@@ -155,13 +156,14 @@ tb_rf2 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_98_07.csv", sep="/")
 tb_rf3 <- read.csv(paste(enviro_data, "Rainfall/TB_Rainfall_08_17.csv", sep="/"))
 tb_rf <- rbind(tb_rf1, tb_rf2, tb_rf3)
 
-#add in salinity
-tb_sal1 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/"))
-tb_sal2 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal3 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal4 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_OldTampaBay_EPCRoutine.csv", sep="/"))
-tb_sal <- rbind(tb_sal1, tb_sal2, tb_sal3, tb_sal4)
+#add in salinity 
+tb_sal1 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_HillsboroughBay_EPCRoutine.csv", sep="/")) 
+tb_sal2 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_LowerTampaBay_EPCRoutine.csv", sep="/")) 
+tb_sal3 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_MiddleTampaBay_EPCRoutine.csv", sep="/")) 
+tb_sal4 <- read.csv(paste(enviro_data, "Salinity/TB/Salinity_OldTampaBay_EPCRoutine.csv", sep="/")) 
+tb_sal <- rbind(tb_sal1, tb_sal2, tb_sal3, tb_sal4) 
 
+ 
 #add in seagrass cover
 tb_sg <- read.csv(paste(enviro_data, "SeagrassCover/SWFWMD_Seagrass_TB.csv", sep="/"))
 
@@ -188,6 +190,10 @@ tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 #Param Name for Phosph   "TP_ugl"
 #Param Name for Salinity "Salinity_ppt"
 #Param Name for Water temp  "TempW_F"
+
+#Param name for Nitrogen "NOx_ugl" DIN
+#Param name for Phosphorous "OP_mgl" DIP
+
 
 # Define fuzzy lat/long boundaries 
 # fuzzy_lat = 0.01 # 0.007 = 0.5 miles, 0.0144 = 1 mile
@@ -384,7 +390,7 @@ for (i in 1:nrow(TB_cat)){
 cleanRF <- function(rf, name) {
   rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
-  tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+  tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
   tot_rf$month <- as.numeric(tot_rf$month)
   tot_rf$year <- as.numeric(tot_rf$year)
   #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
@@ -400,10 +406,24 @@ nit_full <- joinEV(TB_shrt, tb_nit, 0.017, 0.017, nitrogen, "TN_ugl")
 # toc()
 # write.csv(nit_full, paste(out, "TB_nit_join.csv", sep="/"))
 
+
+#DIN
 tic()
-full <- joinEV(TB_red,tb_nit, 0.0288, 0.0288, nitrogen, "TN_ugl" ) #3773, 10166.69
+full <- joinEV(TB_red,tb_nit, 0.017, 0.017, nitrogen, "NOx_ugl" ) 
 toc()
-write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028.csv", sep="/")) 
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_017_DIN.csv", sep="/")) 
+
+
+tic()
+full <- joinEV(TB_red,tb_nit, 0.0288, 0.0288, nitrogen, "NOx_ugl" )
+toc()
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_028_DIN.csv", sep="/")) 
+
+
+tic()
+full <- joinEV(TB_red,tb_nit, 0.043, 0.043, nitrogen, "NOx_ugl" ) 
+toc()
+write.csv(full, paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043_DIN.csv", sep="/")) 
 
 
 # tic()
@@ -469,7 +489,7 @@ toc()
 
 
 # merge nitrogen, phos, salinity, water temp ####
-TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
+TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043_DIN.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
 colnames(TB_nit) <- c("Reference", "Nit_val")
 
 TB_phos <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_ph_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
@@ -492,7 +512,7 @@ TB_new4 <-  left_join(TB_new3, TB_wat, by="Reference")
 TB_new5 <- joinCD(TB_new4, tb_PZ,tb_maxT,tb_minT)
 
 #merge rainfall ####
-tb_tot_rf <- cleanRF(tb_rf, "TotMonthlyRF")
+tb_tot_rf <- cleanRF(tb_rf, "MeanMonthlyRF")
 
 TB_new6 <- left_join(TB_new5, tb_tot_rf, by=c("year", "month"))
 
@@ -524,7 +544,8 @@ TB_cat_env$closest_riv <- as.character(TB_cat_env$closest_riv)
 # TB_cat$closest_riv <- as.factor(TB_cat$closest_riv)
 # table(TB_cat$closest_riv)
 
-# build clean/create seasonal streamflow function that makes mean seasonal ####
+# build clean/create seasonal streamflow function ####
+# makes mean seasonal 
 # seasonally averaged discharge (Purtlebaugh and Allen)
 #spring discharge ( March - May); align catch to river discharge that is closest based on lat and long 
 # mean discharge during March - May months (3,4,5); first must determine the approximate lat and long location for each river mouth 
@@ -826,7 +847,7 @@ clean_seasRF <- function(rf) {
   rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
   rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
-  tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=sum, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+  tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
   tot_rf$year <- as.numeric(tot_rf$year)
   colnames(tot_rf) <- c("year", "season", "total_rf")
   tot_rf
@@ -904,7 +925,233 @@ join_seasRF= function(catch, seasonal_RF){
 }
 
 
-# TO DO build join seasonal EV function (nitrogen, phos, watertemp, salinity) ####
+# build join seasonal ALL streams ####
+# it does not match based on river like the one above
+
+join_seas_streamALL= function(catch, seas_sf){
+  
+  catch$spring_dis_ALL <- NA #112
+  catch$summer_dis_ALL <- NA #113
+  catch$winter_dis_ALL <- NA # 114
+  catch$prev_autumn_dis_ALL <-NA #115
+  
+  for (i in 1:nrow(catch)){
+    
+    cat_month = catch[i,30]
+    cat_year = catch[i,61] 
+    previous_year = catch[i,61] - 1 #will this work: yes
+    #cat_riv = catch[i,66] #66
+    
+    if (cat_month >=6) { 
+      
+      for (j in 1:nrow(seas_sf)){
+        riv_year = seas_sf[j,1]
+        riv_seas = seas_sf[j,2]
+        riv_dis = seas_sf[j,3]
+        #riv_name = seas_sf[j,4]
+        
+        if((cat_year == riv_year) & (riv_seas == "spring")){
+          catch[i,112] <- riv_dis
+        }
+        
+      }
+    }
+    
+    #assign summer flow to all months after entire summer season
+    
+    if (cat_month >=9) { 
+      
+      for (j in 1:nrow(seas_sf)){
+        riv_year = seas_sf[j,1]
+        riv_seas = seas_sf[j,2]
+        riv_dis = seas_sf[j,3]
+        #riv_name = seas_sf[j,4]
+        
+        if((cat_year == riv_year) & (riv_seas == "summer")){
+          catch[i,113] <- riv_dis
+        }
+      }
+    }
+    
+    #  #assign autumn flow to all months after entire autumn season 
+    # if (cat_month >=11) { 
+    #    
+    #    for (j in 1:nrow(seas_sf)){
+    #      riv_year = seas_sf[j,1]
+    #      riv_seas = seas_sf[j,2]
+    #      riv_dis = seas_sf[j,3]
+    #      riv_name = seas_sf[j,4]
+    #      
+    #      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "autumn")){
+    #        catch[i,82] <- riv_dis
+    #      }
+    #    }
+    # }  
+    
+    #assign winter flow to closer months that might be affected
+    if (cat_month >=3 & cat_month <=5) { 
+      
+      for (j in 1:nrow(seas_sf)){
+        riv_year = seas_sf[j,1]
+        riv_seas = seas_sf[j,2]
+        riv_dis = seas_sf[j,3]
+        #riv_name = seas_sf[j,4]
+        
+        if((cat_year == riv_year) & (riv_seas == "winter")){
+          catch[i,114] <- riv_dis
+        }
+      }
+    }
+    
+    #assign previous years autumn to early early months
+    if (cat_month <=5) { 
+      
+      for (j in 1:nrow(seas_sf)){
+        riv_year = seas_sf[j,1]
+        riv_seas = seas_sf[j,2]
+        riv_dis = seas_sf[j,3]
+        #riv_name = seas_sf[j,4]
+        
+        if((previous_year == riv_year) & (riv_seas == "autumn")){
+          catch[i,115] <- riv_dis
+          
+        }
+      }
+    }
+    
+  }
+  catch
+}
+
+
+
+
+#build clean/create seasonal mean salinity and water temp (spawning location) ####
+
+# determine spawning location for each bay area if possible and just use data on salinity and water temp from those areas
+#for Tampa Bay its the lower bay 
+
+
+clean_seas_sal_wt <- function(env, env2, Param_name1, Param_name2){
+
+#do some selection/cleaning on the enviro data based on the catch data to thin the enviro set out
+env$SampleDate <- as.factor(env$SampleDate)
+env <- env %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+env$Date <- as.character(env$Date)
+env <- droplevels( env %>% mutate(year = substr(Date, 1,4), month = substr(Date, 6,7)) %>% subset(Parameter == Param_name1) %>% select(Characteristic,Parameter,Result_Unit, Result_Value, year, month) %>% rename(Salinity=Result_Value))
+env$month <- as.numeric(env$month)
+
+env2$SampleDate <- as.factor(env2$SampleDate)
+env2 <- env2 %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
+env2$Date <- as.character(env2$Date)
+env2 <- droplevels( env2 %>% mutate(year = substr(Date, 1,4), month = substr(Date, 6,7)) %>% subset(Parameter == Param_name2) %>% select(Characteristic,Parameter,Result_Unit, Result_Value, year, month) %>% rename(Temperature=Result_Value))
+env2$month <- as.numeric(env2$month)
+
+join <- left_join(env, env2, by=c("year", "month"))
+join$season <- ifelse(join$month %in% c("4","5"), "first", ifelse(join$month %in% c("6","7"), "second", ifelse(join$month %in% c("8", "9"), "third", "NA")))
+join_seas <- aggregate(cbind(Salinity, Temperature) ~ year + season, FUN= "mean", data=join)
+
+join_seas
+
+}
+
+test <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
+
+
+
+
+
+
+
+# TO DO build join seasonal salinity & watertemp  ####
+
+join_seas_streamALL= function(catch, seas_SAWT){
+  
+  catch$first_spawn_salinity <- NA #116
+  catch$first_spawn_waterT <- NA #117
+  
+  catch$second_spawn_salinity <- NA #118
+  catch$second_spawn_waterT <- NA #119
+  
+
+  
+  for (i in 1:nrow(catch)){
+    
+    cat_month = catch[i,30]
+    cat_year = catch[i,61] 
+    previous_year = catch[i,61] - 1 #will this work: yes
+
+    # if they existed in months 5 or 6 then i will apply the early spawning conditions ("first")
+    if (cat_month > 4) { 
+      
+      for (j in 1:nrow(seas_SAWT)){
+        year = seas_SAWT[j,1]
+        seas = seas_SAWT[j,2]
+        sal = seas_SAWT[j,3]
+        temp = seas_SAWT[j,4]
+ 
+        
+        if((cat_year == year) & (seas == "first")){
+          catch[i,116] <- sal
+          catch[i,117] <- temp
+        }
+      }
+    }
+    
+    #assign summer flow to all months after entire summer season
+    
+    if (cat_month >) { 
+      
+      for (j in 1:nrow(seas_SAWT)){
+        year = seas_SAWT[j,1]
+        seas = seas_SAWT[j,2]
+        sal = seas_SAWT[j,3]
+        temp = seas_SAWT[j,4]
+        
+        
+        if((cat_year == year) & (seas == "summer")){
+          catch[i,118] <- sal
+          catch[i,119] <- temp
+        }
+      }
+    }
+    
+    #assign winter flow to closer months that might be affected
+    if (cat_month >=3 & cat_month <=5) { 
+      
+      for (j in 1:nrow(seas)){
+        riv_year = seas[j,1]
+        riv_seas = seas[j,2]
+        riv_dis = seas[j,3]
+        #riv_name = seas[j,4]
+        
+        if((cat_year == riv_year) & (riv_seas == "winter")){
+          catch[i,114] <- riv_dis
+        }
+      }
+    }
+    
+    #assign previous years autumn to early early months
+    if (cat_month <=5) { 
+      
+      for (j in 1:nrow(seas)){
+        riv_year = seas[j,1]
+        riv_seas = seas[j,2]
+        riv_dis = seas[j,3]
+        #riv_name = seas[j,4]
+        
+        if((previous_year == riv_year) & (riv_seas == "autumn")){
+          catch[i,115] <- riv_dis
+          
+        }
+      }
+    }
+    
+  }
+  catch
+}
+
+
 
 
 
@@ -918,6 +1165,7 @@ tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cub
 tb_seas_LMR$riv <- "LMR"
 tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
+#takes a long time
 TB_cat_new <- join_seas_streamflow(TB_cat_env, tb_seas_All)
 
 #select some rows at random to do by-hand checks to make sure this works
@@ -940,14 +1188,30 @@ TB_cat_env3 <- join_seasRF(TB_cat_new2, tb_seas_rf)
 
 #test_set <- TB_cat_env3[,30:111][sample(nrow(TB_cat_env3), 10),]
 
+# merge seasonal ALL streamflow ####
+# rbind the streams together and then run through cleanSF_withSeason
+#then run through join_seas_streamALL
+
+colnames(tb_HR) <- c("agency", "site_no", "datetime", "value", "code")
+colnames(tb_LMR) <- c("agency", "site_no", "datetime", "value", "code")
+colnames(tb_AR) <- c("agency", "site_no", "datetime", "value", "code")
+
+all_streams <- rbind(tb_HR, tb_LMR, tb_AR)
+
+seas_ALLsf <- cleanSF_withSeason(all_streams, "Mean_dis_ALL_sf")
+
+TB_cat_env4 <- join_seas_streamALL(TB_cat_env3, seas_ALLsf)
+
+
+# TO DO merge seasonal salinity and water temp ####
+ <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
 
 
 
-
-# TO DO merge seasonal nitro, phos, watertemp, salinity ####
-
+# TO DO merge seasonal nitro, phos ####
 
 
+#tb_sal2
 
 
 
