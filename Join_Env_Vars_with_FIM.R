@@ -575,10 +575,10 @@ cleanSF_withSeason <- function(sf, name){
 
 join_seas_streamflow= function(catch, seas_sf){
 
-catch$spring_dis <- NA
-catch$summer_dis <- NA
-catch$winter_dis <- NA
-catch$prev_autumn_dis <-NA 
+catch$spring_dis <- NA #80
+catch$summer_dis <- NA #81
+catch$winter_dis <- NA #82
+catch$prev_autumn_dis <-NA #83
 
 for (i in 1:nrow(catch)){
   
@@ -973,22 +973,6 @@ join_seas_streamALL= function(catch, seas_sf){
       }
     }
     
-    #  #assign autumn flow to all months after entire autumn season 
-    # if (cat_month >=11) { 
-    #    
-    #    for (j in 1:nrow(seas_sf)){
-    #      riv_year = seas_sf[j,1]
-    #      riv_seas = seas_sf[j,2]
-    #      riv_dis = seas_sf[j,3]
-    #      riv_name = seas_sf[j,4]
-    #      
-    #      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "autumn")){
-    #        catch[i,82] <- riv_dis
-    #      }
-    #    }
-    # }  
-    
-    #assign winter flow to closer months that might be affected
     if (cat_month >=3 & cat_month <=5) { 
       
       for (j in 1:nrow(seas_sf)){
@@ -1055,17 +1039,12 @@ join_seas
 
 }
 
-test <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
+#test <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
 
 
+# build join seasonal salinity & watertemp  ####
 
-
-
-
-
-# TO DO build join seasonal salinity & watertemp  ####
-
-join_seas_streamALL= function(catch, seas_SAWT){
+join_seas_SAWT= function(catch, seas_SAWT){
   
   catch$first_spawn_salinity <- NA #116
   catch$first_spawn_waterT <- NA #117
@@ -1073,7 +1052,8 @@ join_seas_streamALL= function(catch, seas_SAWT){
   catch$second_spawn_salinity <- NA #118
   catch$second_spawn_waterT <- NA #119
   
-
+  catch$third_spawn_salinity <- NA #120
+  catch$third_spawn_waterT <- NA #121
   
   for (i in 1:nrow(catch)){
     
@@ -1081,8 +1061,8 @@ join_seas_streamALL= function(catch, seas_SAWT){
     cat_year = catch[i,61] 
     previous_year = catch[i,61] - 1 #will this work: yes
 
-    # if they existed in months 5 or 6 then i will apply the early spawning conditions ("first")
-    if (cat_month > 4) { 
+    #assign first season- exclude those caught before length of first season =  if they existed in months 6,7,8,9,10 then they could have been born from efforts from the first spawning season
+    if (cat_month >= 4) { 
       
       for (j in 1:nrow(seas_SAWT)){
         year = seas_SAWT[j,1]
@@ -1097,11 +1077,11 @@ join_seas_streamALL= function(catch, seas_SAWT){
         }
       }
     }
+
+    # assign second season- exclude those cause before length of second season =  if they existed in months 8,9,10,11,12 then they could have been born from efforts form the second spawning season (i.e if they were caught in mo=5 then they were already spawned-MUST be from first spawn season)
     
-    #assign summer flow to all months after entire summer season
-    
-    if (cat_month >) { 
-      
+    if (cat_month >= 7) { 
+         
       for (j in 1:nrow(seas_SAWT)){
         year = seas_SAWT[j,1]
         seas = seas_SAWT[j,2]
@@ -1109,50 +1089,35 @@ join_seas_streamALL= function(catch, seas_SAWT){
         temp = seas_SAWT[j,4]
         
         
-        if((cat_year == year) & (seas == "summer")){
+        if((cat_year == year) & (seas == "second")){
           catch[i,118] <- sal
           catch[i,119] <- temp
         }
       }
     }
     
-    #assign winter flow to closer months that might be affected
-    if (cat_month >=3 & cat_month <=5) { 
+    # assign third season- only those caught after the end of the third season could have been from that effort 
+    
+    if (cat_month >= 9) { 
       
-      for (j in 1:nrow(seas)){
-        riv_year = seas[j,1]
-        riv_seas = seas[j,2]
-        riv_dis = seas[j,3]
-        #riv_name = seas[j,4]
+      for (j in 1:nrow(seas_SAWT)){
+        year = seas_SAWT[j,1]
+        seas = seas_SAWT[j,2]
+        sal = seas_SAWT[j,3]
+        temp = seas_SAWT[j,4]
         
-        if((cat_year == riv_year) & (riv_seas == "winter")){
-          catch[i,114] <- riv_dis
+        if((cat_year == year) & (seas == "third")){
+          catch[i,120] <- sal
+          catch[i,121] <- temp
         }
       }
     }
-    
-    #assign previous years autumn to early early months
-    if (cat_month <=5) { 
-      
-      for (j in 1:nrow(seas)){
-        riv_year = seas[j,1]
-        riv_seas = seas[j,2]
-        riv_dis = seas[j,3]
-        #riv_name = seas[j,4]
-        
-        if((previous_year == riv_year) & (riv_seas == "autumn")){
-          catch[i,115] <- riv_dis
-          
-        }
-      }
-    }
-    
   }
   catch
 }
 
 
-
+# TO DO clean create seasonal nitro/phos ####
 
 
 
@@ -1166,8 +1131,9 @@ tb_seas_LMR$riv <- "LMR"
 tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
 
 #takes a long time
+tic()
 TB_cat_new <- join_seas_streamflow(TB_cat_env, tb_seas_All)
-
+toc()
 #select some rows at random to do by-hand checks to make sure this works
 
 #test <- TB_cat_env_new[sample(nrow(TB_cat_new),50), ]
@@ -1199,12 +1165,14 @@ colnames(tb_AR) <- c("agency", "site_no", "datetime", "value", "code")
 all_streams <- rbind(tb_HR, tb_LMR, tb_AR)
 
 seas_ALLsf <- cleanSF_withSeason(all_streams, "Mean_dis_ALL_sf")
+test <- TB_cat_env3[1:10,]
 
 TB_cat_env4 <- join_seas_streamALL(TB_cat_env3, seas_ALLsf)
 
+#merge seasonal salinity and water temp ####
+ seas_SAWT <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
 
-# TO DO merge seasonal salinity and water temp ####
- <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
+TB_cat_env5 <- join_seas_SAWT(TB_cat_env4, seas_SAWT)
 
 
 
