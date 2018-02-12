@@ -65,9 +65,9 @@ library(dplyr)
 # observations and not drop any that maybe do not have associated enviro variables or add observations of enviro variables to referecence numbers
 # Reorder columns alphabetically so I can combine dataframes (some columns were in different position in other df)
 
-#.####
+# __________________ ####
 #TAMPA BAY ####
-#.####
+#____________________####
 
 # import catch ####
 tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) 
@@ -1176,8 +1176,9 @@ TB_cat_env5 <- join_seas_SAWT(TB_cat_env4, seas_SAWT)
 # trim and output ####
 write.csv(TB_cat_env5, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag.csv", sep="/"))
 
-
+# _____________________ ####
 # CH ####
+# _____________________ ####
 
 #import catch ####
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% dplyr::mutate(bUnk=bunk) %>% dplyr::select(-bunk) 
@@ -1239,7 +1240,7 @@ ch_ShellC <- read.csv(paste(enviro_data, "Streamflow/CH/Shell_Creek.csv", sep="/
 ch_wt <- read.csv(paste(enviro_data, "WaterTemp/CH/WaterTemp_CH.csv", sep="/"))
 
 
-# TO DO-  join nitrogen, phosphorous, salinity, water temp ####
+#join nitrogen, phosphorous, salinity, water temp ####
 
 #PROBLEM- there are years in CH_main that are not present in ch_nit so the function is failing
 # Need to fix this..... 
@@ -1322,7 +1323,7 @@ write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043_DIN.csv", 
 # wt_full <- subset(wt_full, !duplicated(V3))
 # write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CH_wt_join_043.csv", sep="/")) 
 
-# TO DO - merge closest river mouth ####
+#merge closest river mouth ####
 CR_mouth = c(-82.022044, 26.519627) #, "CR") #caloosahatchee
 MR_mouth = c(-82.203318, 26.957466) #, "MR") #myakka
 PR_mouth = c(-82.044703, 26.953794) #, "PR") #peace river 
@@ -1338,7 +1339,7 @@ CH_cat$closest_riv <- ""
 CH_cat <- closestRiver(CH_cat, rivers)
 
 
-# TO DO _ merge riverflow ####
+#merge riverflow ####
 
 ch_av_CR <- cleanSF(ch_CaloR, "CR") #mean discharge in cubic feet/second
 ch_av_MR <- cleanSF(ch_MyakR, "MR") #mean discharge in cubic feet/second
@@ -1401,97 +1402,235 @@ ch_rf <- ch_rf %>% mutate(year=substr(DATE, 3,4), month = substr(DATE, 6,7))%>% 
 ch_rf$year <- as.numeric(ch_rf$year)
 ch_rf$month <- as.numeric(ch_rf$month)
 
-CH_new9 <- left_join(CH_new8, ch_rf, by=c("year", "month"))
+CH_new6 <- left_join(CH_new5, ch_rf, by=c("year", "month"))
 
 #produce attenuation coefficient ####
 # Only want to do this for Secchi_on_bottom = NO
-CH_new9 <- CH_new9 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
+CH_new6 <- CH_new6 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
 
 #output ####
-write.csv(CH_new9, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_no_lag.csv", sep="/"))
+write.csv(CH_new6, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_no_lag.csv", sep="/"))
 
 #.####
 # Lag Variable Calculations ####
 #.####
 
-#TO DO - merge seasonal streamflow ####    
-tb_seas_AR <- cleanSF_withSeason(tb_AR, "Mean_dis") #mean discharge in cubic feet/second
-tb_seas_AR$riv <- "AR"
-tb_seas_HR <- cleanSF_withSeason(tb_HR, "Mean_dis") #mean discharge in cubic feet/second
-tb_seas_HR$riv <- "HR"
-tb_seas_LMR <- cleanSF_withSeason(tb_LMR, "Mean_dis")     #mean discharge in cubic feet/second
-tb_seas_LMR$riv <- "LMR"
-tb_seas_All <- rbind(tb_seas_AR, tb_seas_HR, tb_seas_LMR)
+CH_cat_env <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_all_env_no_lag.csv",sep="/"), header=T)
+CH_cat_env <- CH_cat_env[,-1]
+CH_cat_env$closest_riv <- as.character(CH_cat_env$closest_riv)
+
+#TO DO - merge seasonal streamflow ####
+
+ch_seas_CR <- cleanSF_withSeason(ch_CaloR, "Mean_dis") #mean discharge in cubic feet/second
+ch_seas_CR$riv <- "CR"
+ch_seas_MR <- cleanSF_withSeason(ch_MyakR, "Mean_dis") #mean discharge in cubic feet/second
+ch_seas_MR$riv <- "MR"
+ch_seas_PR <- cleanSF_withSeason(ch_PeaR, "Mean_dis")     #mean discharge in cubic feet/second
+ch_seas_PR$riv <- "PR"
+
+ch_seas_All <- rbind(ch_seas_CR, ch_seas_MR, ch_seas_PR)
 
 #takes a long time
 tic()
-TB_cat_new <- join_seas_streamflow(TB_cat_env, tb_seas_All)
+CH_cat_new <- join_seas_streamflow(CH_cat_env, ch_seas_All)
 toc()
 #select some rows at random to do by-hand checks to make sure this works
 
-#test <- TB_cat_env_new[sample(nrow(TB_cat_new),50), ]
 
 # TO DO- merge seasonal_CD airtemp and palmerZ ####  
 
-seasonal_CD <- clean_seasCD(tb_PZ, tb_maxT, tb_minT)
+seasonal_CD <- clean_seasCD(ch_PZ, ch_maxT, ch_minT)
 
-TB_cat_new2 <- join_seasCD(TB_cat_new, seasonal_CD)
+CH_cat_new2 <- join_seasCD(CH_cat_new, seasonal_CD)
 
-#test_set <- TB_cat_new2[,30:107][sample(nrow(TB_cat_new2), 10),]
 
 # TO DO- merge seasonal rainfall #### 
 
-tb_seas_rf <- clean_seasRF(tb_rf)
-
-TB_cat_env3 <- join_seasRF(TB_cat_new2, tb_seas_rf)
-
-#test_set <- TB_cat_env3[,30:111][sample(nrow(TB_cat_env3), 10),]
+ch_seas_rf <- clean_seasRF(ch_rf)
+CH_cat_env3 <- join_seasRF(CH_cat_new2, ch_seas_rf)
 
 # TO DO - merge seasonal ALL streamflow ####
 # rbind the streams together and then run through cleanSF_withSeason
 #then run through join_seas_streamALL
 
-colnames(tb_HR) <- c("agency", "site_no", "datetime", "value", "code")
-colnames(tb_LMR) <- c("agency", "site_no", "datetime", "value", "code")
-colnames(tb_AR) <- c("agency", "site_no", "datetime", "value", "code")
+colnames(ch_CaloR) <- c("agency", "site_no", "datetime", "value", "code")
+colnames(ch_MyakR) <- c("agency", "site_no", "datetime", "value", "code")
+colnames(ch_PeaR) <- c("agency", "site_no", "datetime", "value", "code")
 
-all_streams <- rbind(tb_HR, tb_LMR, tb_AR)
+all_streams <- rbind(ch_CaloR, ch_MyakR, ch_PeaR)
 
 seas_ALLsf <- cleanSF_withSeason(all_streams, "Mean_dis_ALL_sf")
-test <- TB_cat_env3[1:10,]
+#test <- TB_cat_env3[1:10,]
 
-TB_cat_env4 <- join_seas_streamALL(TB_cat_env3, seas_ALLsf)
+CH_cat_env4 <- join_seas_streamALL(CH_cat_env3, seas_ALLsf)
 
 # TO DO - merge seasonal salinity and water temp ####
-seas_SAWT <- clean_seas_sal_wt(tb_sal2,tb_wt2, "Salinity_ppt", "TempW_F")
+seas_SAWT <- clean_seas_sal_wt(ch_sal,ch_wt, "Salinity_ppt", "TempW_F")
 
-TB_cat_env5 <- join_seas_SAWT(TB_cat_env4, seas_SAWT)
+CH_cat_env5 <- join_seas_SAWT(CH_cat_env4, seas_SAWT)
 
 # TO DO merge seasonal nitro, phos ####
 # TO DO trim and output ####
-write.csv(TB_cat_env5, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag.csv", sep="/"))
+write.csv(CH_cat_env5, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_with_lag.csv", sep="/"))
+
+
+
+
+# ________________####
+# BUILD OUT - AP####
+# _______________ ####
+
+#import catch ####
+ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
+#ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
+ap_phys$Reference <- as.character(ap_phys$Reference)
+#There are duplicated References in ap_hyd
+ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
+#There are duplicated References in ap_hyd
+ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
+ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
+ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
+
+
+# fill missing lat/long ####
+#Add in missing lat and long based on the Zone. I.e. if lat and long is missing then use lat and long for similar zone. This is necessary to be able to match any environmental data based on time and space. 
+unique(ap$Zone)
+unique(subset(ap, is.na(Latitude))$Zone) #assume if its missing Long then its also missing Lat
+
+#No missing lats and longs
+AP_cat <- ap %>% mutate(NewLong = Longitude, NewLat = Latitude)
+
+#tidy catch ####
+AP_red <- tidy_catch(AP_cat)
+
+
+# import environment #### 
+#add in air temp
+ap_maxT <- read.csv(paste(enviro_data, "AirTemp/Max_Temp_CD1.csv", sep="/"), skip=4)
+ap_minT <- read.csv(paste(enviro_data, "AirTemp/Min_Temp_CD1.csv", sep="/"), skip=4)
+
+#add in nitrogen
+ap_nit <- read.csv(paste(enviro_data, "Nutrients/AP/3522.csv", sep="/")) %>% dplyr::select(StationCode, DateTime, NH4F,F_NH4F, NO2F, F_NO2F, NO3F, F_NO3F)
+
+#add in phosphorous
+ap_ph <- read.csv(paste(enviro_data, "Nutrients/AP/3522.csv", sep="/")) %>% dplyr::select(StationCode, DateTime, PO4F,F_PO4f)
+
+# add in Palmer Z
+ap_PZ <- read.csv(paste(enviro_data,"PalmerZ/PalmerZ_CD1.csv", sep="/" ),skip=3)
+
+#add in rainfall
+ap_rf1 <- read.csv(paste(enviro_data, "Rainfall/AP_Rainfall_88_97.csv", sep="/"))
+ap_rf2 <- read.csv(paste(enviro_data, "Rainfall/AP_Rainfall_98_07.csv", sep="/"))
+ap_rf3 <- read.csv(paste(enviro_data, "Rainfall/AP_Rainfall_08_17.csv", sep="/"))
+
+#add in salinity
+ap_sal <- read.csv(paste(enviro_data, "Salinity/AP/363383.csv", sep="/"))
+
+# Cat Point			CP				apacpwq   (29.7021, -84.8802)
+# Dry Bar			DB				apadbwq  (29.6747 degrees latitude and -85.0583667 degrees longitude)
+# East Bay Bottom		EB				apaebwq 29.7858	84.8752
+# East Bay Surface		ES				apaeswq 29.7858	84.8752
+# Pilots Cove			PC				apapcwq  29.601	85.0277
+# Little St. Marks		LM				apalmwq 29.755689	85.003525
+
+#add in Seagrass Cover
+#ch_sg <- read.csv(paste(enviro_data, "SeagrassCover/Seagrass_Cover_CharlotteHarbor.csv", sep="/"))
+
+#add in streamflow
+ap_AR <- read.csv(paste(enviro_data, "Streamflow/AP/Apalachicola_River_NR_Sumatra_FL.csv", sep="/"), skip=28)
+
+#add in water temp
+ap_wt <- read.csv(paste(enviro_data, "WaterTemp/AP/765372.csv", sep="/"))
+
+# Cat Point			CP				apacpwq   (29.7021, -84.8802)
+# Dry Bar			DB				apadbwq  (29.6747 degrees latitude and -85.0583667 degrees longitude)
+# East Bay Bottom		EB				apaebwq 29.7858	84.8752
+# East Bay Surface		ES				apaeswq 29.7858	84.8752
+# Pilots Cove			PC				apapcwq  29.601	85.0277
+# Little St. Marks		LM				apalmwq 29.755689	85.003525
+
+
+#TO-DO join nitrogen, phosphorous, salinity, water temp ####
+# requires by hand
+
+
+#TO DO - merge closest river mouth ####
+AR_mouth = c(-84.9806, 29.729) #, "AR") #alafia
+
+riv_name= c("AR")
+
+rivers = data.frame(AR_mouth)
+rivers = cbind(rivers, riv_name)
+rivers$riv_name <- as.character(rivers$riv_name)
+
+AP_cat$closest_riv <- ""
+AP_cat <- closestRiver(AP_cat, rivers)
+
+
+#TO-DO merge riverflow ####
+
+ap_av_AR <- cleanSF(ap_AR, "AR") #mean discharge in cubic feet/second
+
+streamfl <- ap_av_AR
+streamfl <- subset(streamfl, month >= min(unique(AP_cat$month)) & year>= min(unique(AP_cat$year)))
+
+AP_cat$river_flow <- 1
+tic()
+for (i in 1:nrow(AP_cat)){
+  cat_month = AP_cat[i,30]
+  cat_year = AP_cat[i,61] 
+  cat_riv = AP_cat[i,66] #66
+  
+  
+  for (j in 1:nrow(streamfl)){
+    riv_year = streamfl[j,1]
+    riv_month = streamfl[j,2]
+    riv_dis = streamfl[j,3]
+    riv_name = streamfl[j,4]
+    
+    if((cat_riv==riv_name) & (cat_year == riv_year) & (cat_month == riv_month)){
+      AP_cat[i,67] <- riv_dis
+      
+    } 
+    
+  }
+  
+}
+toc()
+
+
+#TO DO - merge nitrogen, phos, salinity, water temp ####
+
+#TO DO- merge airtemp and palmerZ (climate zones-CD) ####
+CH_new5 <- joinCD(CH_new4, ch_PZ,ch_maxT,ch_minT)
+
+# TO-DO merge rainfall ####
+#Charlotte harbor rainfall datasheet is set up differently than all of the rest so I can't do this using the function-must do this manually 
+
+ch_rf <- ch_rf %>% mutate(year=substr(DATE, 3,4), month = substr(DATE, 6,7))%>%  select(year, month, PRCP) %>% rename(TotMonthlyRF = PRCP)
+ch_rf$year <- as.numeric(ch_rf$year)
+ch_rf$month <- as.numeric(ch_rf$month)
+
+CH_new6 <- left_join(CH_new5, ch_rf, by=c("year", "month"))
+
+# TO DO - produce attenuation coefficient ####
+# Only want to do this for Secchi_on_bottom = NO
+CH_new6 <- CH_new6 %>% mutate(ext_ceof = ifelse(Secchi_on_bottom =="NO", 1.7/(Secchi_depth), NA))
+
+# TO DO- output ####
+write.csv(CH_new6, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_no_lag.csv", sep="/"))
+
+#.####
+#Lag Variable Calculations ####
+#.####
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# TO DO- IR ####
+# BUILD OUT - IR ####
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11)) 
 #ir_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/irm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ir_phys <- read_sas(paste(phys_dat, "irm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -1502,7 +1641,7 @@ ir_hyd <- ir_hyd[!duplicated(ir_hyd$Reference),]
 ir <- left_join(ir, ir_phys, by="Reference") %>% left_join(ir_hyd, by="Reference")
 ir <- ir %>% select(noquote(order(colnames(ir))))  #reorders the columns alphabetically 
 
-# TO DO- JX ####
+# BUILD OUT - JX ####
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11)) 
 #jx_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/jxm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 jx_phys <- read_sas(paste(phys_dat, "jxm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
@@ -1515,19 +1654,8 @@ jx <- jx %>% select(noquote(order(colnames(jx))))  #reorders the columns alphabe
 
 
 
-# TO DO- AP####
-ap = subset(read_sas("ap_yoy_cn_c.sas7bdat"), month %in% c(6,7,8,9,10,11)) %>% mutate(bUnk=bunk) %>% select(-bunk) 
-#ap_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/apm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ap_phys <- read_sas(paste(phys_dat, "apm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
-ap_phys$Reference <- as.character(ap_phys$Reference)
-#There are duplicated References in ap_hyd
-ap_hyd <- subset(read_sas("ap_yoy_cn_hyd.sas7bdat")) 
-#There are duplicated References in ap_hyd
-ap_hyd <- ap_hyd[!duplicated(ap_hyd$Reference),]
-ap <- left_join(ap, ap_phys, by="Reference") %>% left_join(ap_hyd, by="Reference")
-ap <- ap %>% select(noquote(order(colnames(ap))))  #reorders the columns alphabetically 
 
-# To DO- CK ####
+# BUILD OUT -  CK ####
 ck = subset(read_sas("ck_yoy_cn_c.sas7bdat"),  month %in% c(5,6,7,8,9,10,11))
 #ck_phys <- read_sas("~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data/ckm_physical.sas7bdat") %>% select(Reference, Secchi_on_bottom, Secchi_depth)
 ck_phys <- read_sas(paste(phys_dat, "ckm_physical.sas7bdat", sep="/")) %>% select(Reference, Secchi_on_bottom, Secchi_depth)
