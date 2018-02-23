@@ -532,7 +532,7 @@ for (i in 1:nrow(TB_cat)){
 
 #build clean rainfall function ####
 cleanRF <- function(rf, name) {
-  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, STATION_NAME, HOURLYPrecip)
+  rf <- rf %>% dplyr::mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  dplyr::select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
   tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
   tot_rf$month <- as.numeric(tot_rf$month)
@@ -632,7 +632,7 @@ toc()
 
 # TO DO- merge nitrogen, phos, salinity, water temp ####
 
-#this is actually just No2 + no3
+#DIN
 TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043_DIN.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
 colnames(TB_nit) <- c("Reference", "Nit_val")
 
@@ -1178,7 +1178,7 @@ env = env %>% subset(StationID %in% selected_stations)
 env$SampleDate <- as.factor(env$SampleDate)
 env <- env %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
 env$Date <- as.character(env$Date)
-env <- droplevels( env %>% mutate(year = substr(Date, 1,4), month = substr(Date, 6,7)) %>% subset(Parameter == "Salinity_ppt") %>% dplyr::select(Characteristic,Parameter,Result_Unit, Result_Value, year, month) %>% rename(Salinity=Result_Value))
+env <- droplevels( env %>% mutate(year = substr(Date, 1,4), month = substr(Date, 6,7)) %>% subset(Parameter == Param_name1) %>% dplyr::select(Characteristic,Parameter,Result_Unit, Result_Value, year, month) %>% rename(Salinity=Result_Value))
 env$month <- as.numeric(env$month)
 
 env2 = env2 %>% subset(StationID %in% selected_stations)
@@ -1201,7 +1201,7 @@ env = env %>% subset(StationID %in% selected_stations)
 env$SampleDate <- as.factor(env$SampleDate)
 env <- env %>% mutate(Date = as.Date(SampleDate, format = " %m/%d/%Y"))
 env$Date <- as.character(env$Date)
-env <- droplevels( env %>% mutate(year = substr(Date, 1,4), month = substr(Date, 6,7)) %>% subset(Parameter == "Salinity_ppt") %>% dplyr::select(Characteristic,Parameter,Result_Unit, Result_Value, year, month) %>% rename(Salinity=Result_Value))
+env <- droplevels( env %>% mutate(year = substr(Date, 1,4), month = substr(Date, 6,7)) %>% subset(Parameter == Param_name1) %>% dplyr::select(Characteristic,Parameter,Result_Unit, Result_Value, year, month) %>% rename(Salinity=Result_Value))
 env$month <- as.numeric(env$month)
 
 env2 = env2 %>% subset(StationID %in% selected_stations)
@@ -1328,7 +1328,60 @@ join_seas_SAWT= function(catch, seas_SAWT){
 }
 
 
-# TO DO clean create seasonal nitro ####
+# build clean/create seasonal nitro ####
+
+clean_seas_nitro <- function(nit_spread, selected_stations){
+
+env = nit_spread %>% subset(StationID %in% selected_stations)
+env$SampleDate <- as.factor(env$SampleDate)
+env <- droplevels( env %>% mutate(year = substr(SampleDate, 1,4), month = substr(SampleDate, 6,7)) %>% subset %>% dplyr::select( DIN, year, month)) 
+env$month <- as.numeric(env$month)
+
+nit_ag <- aggregate(DIN ~ year + month, FUN= "mean", data=env)
+nit_ag $year <- as.factor(nit_ag $year)
+nit_ag 
+}
+
+#TO DO - build join seasonal nitro ####
+
+join_spawn_nitro = function(catch, seas_nitro) {
+  catch$atspawn_nitro <- NA #127
+  catch$avg_last2_nitro <- NA #128
+  catch$avg_last3_nitro <- NA #129
+  
+  for (i in 1:nrow(catch)){
+    
+  
+    before1_spawn = catch[i,68]-1
+    before2_spawn = catch[i,68]-2
+    before3_spawn= catch[i,68]-3
+    cat_year = catch[i,61] 
+  
+    
+    for (j in 1:nrow(seas_SAWT)){
+      DIN = seas_nitro[j,1]
+      year = seas_nitro[j,2]
+     month = seas_nitro[j,3]
+  
+    }
+     
+     if((cat_year == year) & (before1_spawn == month)) {
+        spawn_1[i] <- DIN
+       catch[i,127] <- DIN
+     }
+     
+     if((cat_year == year) & (before2_spawn == month)) {
+       spawn_2[i] <- DIN
+     }
+    if((cat_year == year) & (before3_spawn == month)) {
+       spawn_3[i] <- DIN
+     }
+  }
+  catch[128] <- mean(spawn_1, spawn_2)
+  catch[129] <- mean(spawn_1, spawn_2, spawn_3)
+  catch
+}
+
 
 
 #merge seasonal streamflow ####    
@@ -1392,6 +1445,27 @@ TB_cat_env5 <- join_spawn_SAWT(TB_cat_env4, spawn_SAWT)
 TB_cat_env6 <- join_seas_SAWT(TB_cat_env5, seas_SAWT)
 
 # TO DO merge seasonal nitro ####
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # trim and output ####
 write.csv(TB_cat_env6, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag.csv", sep="/"))
 
@@ -1644,17 +1718,9 @@ toc()
 
 #TO DO- merge nitrogen, phos, salinity, water temp ####
 
-#this is actually just No2 + no3
-CH_nit1 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043_nox.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
-colnames(CH_nit1) <- c("Reference", "Nit_val")
-
-#this is nh3
-CH_nit2 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043_nh3.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
-colnames(CH_nit2) <- c("Reference", "Nit_val")
-
-CH_nit <-left_join(CH_nit1, CH_nit2, by="Reference")
-#adding them together will get total DIN
-CH_nit <- CH_nit %>% mutate(total_DIN = rowSums(CH_nit[,2:3])) %>% select(Reference, total_DIN)
+#DIN
+CH_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_nit_join_043_DIN.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
+colnames(CH_nit) <- c("Reference", "Nit_val")
 
 CH_phos <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_ph_join_043.csv", sep="/"), header=T) %>% select(V3, V4)%>% subset(!duplicated(V3))
 colnames(CH_phos) <- c("Reference", "Phos_val")
@@ -1675,20 +1741,10 @@ CH_new4 <-  left_join(CH_new3, CH_wat, by="Reference")
 CH_new5 <- joinCD(CH_new4, ch_PZ,ch_maxT,ch_minT)
 
 #merge rainfall ####
-#Charlotte harbor rainfall datasheet is set up differently than all of the rest so I can't do this using the function-must do this manually 
-# for charlotte harbor its total monthly rainfall
+#Charlotte harbor Date rainfall datasheet is set up differently than all of the rest so I can't do this using the function-must do this manually 
 
-# ch_rf <- ch_rf %>% mutate(year=substr(DATE, 3,4), month = substr(DATE, 6,7))%>%  select(year, month, PRCP) %>% rename(TotMonthlyRF = PRCP)
-# ch_rf$year <- as.numeric(ch_rf$year)
-# ch_rf$month <- as.numeric(ch_rf$month)
-
-
-#build clean rainfall function ####
-cleanRF <- function(rf, name) {
-  rf <- ch_rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month,Date, DATE, STATION_NAME, HOURLYPrecip)
-  
-  
-  
+cleanRF_CH <- function(rf, name) {
+  rf <- rf %>% dplyr::mutate(Date = as.Date(DATE, format= "%Y-%m-%d"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  dplyr::select(year, month, STATION_NAME, HOURLYPrecip)
   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
   tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
   tot_rf$month <- as.numeric(tot_rf$month)
@@ -1699,12 +1755,8 @@ cleanRF <- function(rf, name) {
 }
 
 
-
-
-ch_tot_rf <- cleanRF(ch_rf, "MeanMonthlyRF")
+ch_tot_rf <- cleanRF_CH(ch_rf, "MeanMonthlyRF")
 CH_new6 <- left_join(CH_new5, ch_tot_rf, by=c("year", "month"))
-
-
 
 
 #produce attenuation coefficient ####
@@ -1753,21 +1805,23 @@ CH_cat_new2 <- join_seasCD(CH_cat_new, seasonal_CD)
 #merge seasonal rainfall #### 
 #by hand because column names are different for some reason
 
-ch_seas_rf <- clean_seasRF(ch_rf)
+clean_seasRF_CH <- function(rf) {
+  rf <- rf
+  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%Y-%m-%d"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, HOURLYPrecip)
+  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
+  rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
+  tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+  tot_rf$year <- as.numeric(tot_rf$year)
+  colnames(tot_rf) <- c("year", "season", "total_rf")
+  tot_rf
+}
+
+
+
+ch_seas_rf <- clean_seasRF_CH(ch_rf)
 
 CH_cat_env3 <- join_seasRF(CH_cat_new2, ch_seas_rf)
 
-
-# rf <- ch_rf %>% mutate(year = substr(DATE,1,4), month= substr(DATE, 6,7)) %>%  select(year, month, PRCP)
-# rf$PRCP <- as.numeric(rf$PRCP)
-# rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
-# tot_rf <- aggregate(PRCP ~ year + season, FUN=mean, data=rf)%>% rename(Monthly_precip=PRCP)
-# tot_rf$year <- as.numeric(tot_rf$year)
-# colnames(tot_rf) <- c("year", "season", "total_rf")
-# ch_seas_rf <- tot_rf
-# 
-# 
-# CH_cat_env3 <- join_seasRF(CH_cat_new2, ch_seas_rf)
 
 #merge seasonal ALL streamflow ####
 
@@ -1783,7 +1837,7 @@ seas_ALLsf <- cleanSF_withSeason(all_streams, "Mean_dis_ALL_sf")
 CH_cat_env4 <- join_seas_streamALL(CH_cat_env3, seas_ALLsf)
 
 #TODO- merge seasonal salinity and water temp ####
-selected_stations <- c()
+selected_stations <- c("141", "177", "179", "CHV011", "159" )
 #which 
 
 spawn_SAWT <- clean_seas_sal_wt(ch_sal,ch_wt, "Salinity_ppt", "TempW_F", selected_stations, "monthly")
@@ -1792,11 +1846,12 @@ seas_SAWT <- clean_seas_sal_wt(ch_sal,ch_wt, "Salinity_ppt", "TempW_F", selected
 #replace NAs in spawn_month
 CH_cat_env4 <- CH_cat_env4 %>% replace_na(list(spawn_month=9999))
 
-CH_cat_env5 <- join_seas_SAWT(CH_cat_env4, seas_SAWT)
+CH_cat_env5 <- join_spawn_SAWT(CH_cat_env4, spawn_SAWT)
+CH_cat_env6 <- join_seas_SAWT(CH_cat_env5, seas_SAWT)
 
 # TO DO - merge seasonal nitro, phos ####
 # trim and output ####
-write.csv(CH_cat_env5, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_with_lag.csv", sep="/"))
+write.csv(CH_cat_env6, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_with_lag.csv", sep="/"))
 
 
 
