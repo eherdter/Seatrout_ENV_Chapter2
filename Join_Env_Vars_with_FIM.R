@@ -9,13 +9,22 @@
 #must change working directory for data when working on personal vs work computer
 rm(list=ls())
 
-enviro_data = "U:/PhD_projectfiles/Raw_Data/Environmental_Data"
-enviro_data = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData"
+# Set Location
+IS_HOME = TRUE
 
-personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
-work_comp = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
-phys_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
-phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
+if (IS_HOME == TRUE) {
+  personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
+  phys_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
+  enviro_data = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData"
+  out =   "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes"
+  setwd(personal_comp)
+} else {
+  work_comp = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
+  phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaster-data-sas-inshore"
+  enviro_data = "U:/PhD_projectfiles/Raw_Data/Environmental_Data"
+  out =   "U:/PhD_projectfiles/Exported_R_Datafiles"
+  setwd(work_comp)
+}
 
 # nutrient_dat = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/Nutrients/Nitrogen"
 # nutrient_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/Nutrients"
@@ -29,12 +38,6 @@ phys_dat = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/Raw Data from fimaste
 # palmerz = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData/PalmerZ"
 # seagrass = "U:/PhD_projectfiles/Raw_Data/Environmental_Data/SeagrassCover"
 # 
-
-out =   "U:/PhD_projectfiles/Exported_R_Datafiles"
-out =   "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes"
-
-setwd(personal_comp)
-setwd(work_comp)
 
 # Load Packages
 ####
@@ -630,7 +633,7 @@ for (i in 1:nrow(TB_cat)){
   }
 toc()
 
-# TO DO- merge nitrogen, phos, salinity, water temp ####
+#merge nitrogen, phos, salinity, water temp ####
 
 #DIN
 TB_nit <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_nit_join_043_DIN.csv", sep="/"), header=T) %>% select(V3, V4) %>% subset(!duplicated(V3))
@@ -1169,7 +1172,6 @@ join_seas_streamALL= function(catch, seas_sf){
 #for Tampa Bay its the lower bay 
 
 selected_stations = c(93,92,24,22,95,91,96,90,25,23,21,28,19,16,84,81,9)
-
 clean_seas_sal_wt <- function(env, env2, Param_name1, Param_name2, selected_stations, flag){
 
   if (flag == "seasonal") {
@@ -1259,7 +1261,7 @@ join_seas_SAWT= function(catch, seas_SAWT){
   
   catch$first_spawn_salinity <- NA #121
   catch$first_spawn_waterT <- NA #122
-  
+ 
   catch$second_spawn_salinity <- NA #123
   catch$second_spawn_waterT <- NA #124
   
@@ -1330,58 +1332,66 @@ join_seas_SAWT= function(catch, seas_SAWT){
 
 # build clean/create seasonal nitro ####
 
-clean_seas_nitro <- function(nit_spread, selected_stations){
+clean_seas_nitro <- function(env, selected_stations){
 
-env = nit_spread %>% subset(StationID %in% selected_stations)
+env = env %>% subset(StationID %in% selected_stations)
 env$SampleDate <- as.factor(env$SampleDate)
 env <- droplevels( env %>% mutate(year = substr(SampleDate, 1,4), month = substr(SampleDate, 6,7)) %>% subset %>% dplyr::select( DIN, year, month)) 
 env$month <- as.numeric(env$month)
 
 nit_ag <- aggregate(DIN ~ year + month, FUN= "mean", data=env)
-nit_ag $year <- as.factor(nit_ag $year)
-nit_ag 
+nit_ag$year <- as.numeric(nit_ag$year)
+nit_ag[order(nit_ag$year),]
 }
 
-#TO DO - build join seasonal nitro ####
-
+#build join seasonal nitro ####
 join_spawn_nitro = function(catch, seas_nitro) {
   catch$atspawn_nitro <- NA #127
   catch$avg_last2_nitro <- NA #128
   catch$avg_last3_nitro <- NA #129
+  spawn_1 <- as.data.frame(matrix(data=NA,nrow=nrow(catch),ncol=1))
+  spawn_2 <- as.data.frame(matrix(data=NA,nrow=nrow(catch),ncol=1))
+  spawn_3 <- as.data.frame(matrix(data=NA,nrow=nrow(catch),ncol=1))
+  counter = 1
   
   for (i in 1:nrow(catch)){
     
-  
+
     before1_spawn = catch[i,68]-1
     before2_spawn = catch[i,68]-2
-    before3_spawn= catch[i,68]-3
+    before3_spawn = catch[i,68]-3
     cat_year = catch[i,61] 
   
-    
-    for (j in 1:nrow(seas_SAWT)){
-      DIN = seas_nitro[j,1]
-      year = seas_nitro[j,2]
-     month = seas_nitro[j,3]
-  
+   
+    for (j in 1:nrow(seas_nitro)){
+      year = seas_nitro[j,1]
+      month = seas_nitro[j,2]
+      DIN = seas_nitro[j,3]
+     
+      if(cat_year == year) {
+        if (before1_spawn == month) {
+          catch[i,127] <- DIN
+          spawn_1[i,] <- DIN
+        }
+        else if(before2_spawn == month) {
+          spawn_2[i,] <- DIN
+        }
+        else if(before3_spawn == month) {
+          spawn_3[i,] <- DIN
+        }
+      }
     }
-     
-     if((cat_year == year) & (before1_spawn == month)) {
-        spawn_1[i] <- DIN
-       catch[i,127] <- DIN
-     }
-     
-     if((cat_year == year) & (before2_spawn == month)) {
-       spawn_2[i] <- DIN
-     }
-    if((cat_year == year) & (before3_spawn == month)) {
-       spawn_3[i] <- DIN
-     }
+    counter=counter+1
   }
-  catch[128] <- mean(spawn_1, spawn_2)
-  catch[129] <- mean(spawn_1, spawn_2, spawn_3)
+  spawn_1
+  spawn_2
+  spawn_3
+  
+ 
+  catch[,128] <- rowMeans(cbind(spawn_1, spawn_2), na.rm=TRUE)
+  catch[,129] <- rowMeans(cbind(spawn_1, spawn_2, spawn_3), na.rm=TRUE)
   catch
 }
-
 
 
 #merge seasonal streamflow ####    
@@ -1444,30 +1454,14 @@ TB_cat_env4 <- TB_cat_env4 %>% replace_na(list(spawn_month=9999))
 TB_cat_env5 <- join_spawn_SAWT(TB_cat_env4, spawn_SAWT)
 TB_cat_env6 <- join_seas_SAWT(TB_cat_env5, seas_SAWT)
 
-# TO DO merge seasonal nitro ####
+#merge seasonal nitro ####
 
+seas_nitro <- clean_seas_nitro(nit_spread, selected_stations)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+TB_cat_env7 = join_spawn_nitro(TB_cat_env6, seas_nitro)
 
 # trim and output ####
-write.csv(TB_cat_env6, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag.csv", sep="/"))
+write.csv(TB_cat_env7, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag.csv", sep="/"))
 
 # _____________________ ####
 # CHARLOTTE HARBOR ####
