@@ -5,14 +5,14 @@
 rm(list=ls())
 
 # Set Location
-IS_HOME = FALSE
+IS_HOME = TRUE
 
 if (IS_HOME == TRUE) {
   #personal_comp = "~/Desktop/PhD project/Projects/Seatrout/FWRI SCRATCH FOLDER/Elizabeth Herdter/SAS data sets/FIMData/NEWNov7"
   #phys_dat = "~/Desktop/PhD project/Projects/Seatrout/Data/Raw Survey Data/Seatrout FIM Data"
   #enviro_data = "~/Desktop/PhD project/Projects/Seatrout/Data/EnvironmentalData"
   data =   "~/Desktop/PhD project/Projects/Seatrout/Data/Exported R Dataframes/Seatrout_ENV_Chapter2"
-  source_location
+  source_location= "/Desktop/PhD project/Projects/Seatrout/Seatrout_ENV_Chapter2"
   setwd(data)
   source("~/Desktop/PhD project/Projects/Seatrout/Seatrout_ENV_Chapter2/brt.functions.R")
 } else {
@@ -159,38 +159,33 @@ ggplot(num, aes(year, num_per_haul)) + geom_line()+
 
 # tc (will range from 5,7,10)
 # lr (0.01, 0.005, 0.001, 0.0005, 0.0001)
-tc=c(5)
-lr=c(0.01, 0.005, 0.001, 0.0005, 0.0001)
-lr=c(0.01, 0.001)
-
+tc=matrix(c(5,7), nrow=2)
+lr=matrix(c(0.001, 0.0005, 0.0001),nrow=3)
 set.seed(12345)
-TB_train <- TB[sample(nrow(TB),200),]
 
+#evaluate at a tc of 5 (lr=0.001, 0.0005, 0.0001) and tc = 7 (lr=0.001, 0.0005, 0.0001)
+mat =matrix(c(5, 0.001, 5, 0.0005, 5, 0.0001,7,0.001, 7, 0.0005, 7, 0.0001), ncol=2, byrow=TRUE)
+TB_train <- TB[sample(nrow(TB),1000),]
 
-runBRT= function(tc, lr, dat) {
-  
+runBRT= function(mat, dat) {
   #initialize an empty dataframe
-results= data.frame(data=NA, nrow=100, ncol=11)
-row_index = 1
+results= data.frame(matrix(data=NA, nrow=100, ncol=13))
+#row_index = 1
 
-for (i in 1:nrow(tc)) {
-  tc = tc[i]
+for (i in 1:nrow(mat)) {
+  tc = mat[i,1]
+  lr = mat[i,2]
   
-  for (j in 1:nrow(lr)){
-    lr=lr[j]
-  }
- model <- gbm.step(dat, gbm.x=c(3:4, 6,7,11:65), gbm.y=2, family="poisson", tree.complexity=tc, learning.rate=lr, bag.fraction=0.5)
-
- 
- out = cbind(model$cv.statistics[1:5], model$self.statistics[1:5], model$n.tree)
-  
-  results[j,] <- out
-  #row_index=row_index+1
-  }
+  model <- gbm.step(dat, gbm.x=c(3:4, 6,7,11:65), gbm.y=2, family="poisson", tree.complexity=tc, learning.rate=lr, bag.fraction=0.5)
+    
+  out = cbind(data.frame(model$cv.statistics[1:5]), data.frame(model$self.statistics[1:5]), data.frame(model$n.tree), tc, lr)
+  results[i,] <- out
+}
 results
+#colnames(results) = colnames(data.frame(model$cv.statistics))
 }
 
-runBRT(tc, lr, TB_train)
+runBRT(mat, TB_train)
 
 
 
