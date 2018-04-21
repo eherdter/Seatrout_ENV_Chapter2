@@ -3,7 +3,7 @@ trace(utils:::unpackPkgZip, edit=TRUE)
 # Set Working Directory ####
 #must change working directory for data when working on personal vs work computer
 rm(list=ls())
-gd
+gdg
 # Set Location
 IS_HOME = FALSE
 
