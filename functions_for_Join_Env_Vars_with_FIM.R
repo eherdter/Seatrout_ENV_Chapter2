@@ -13,7 +13,7 @@ tidy_catch = function(catch) {
   catch$month <- as.numeric(catch$month)
   catch <- data.frame(catch)
   Zone.prop <- as.data.frame(prop.table(xtabs(~Zone, data=catch)))
-  zone1 <- droplevels(Zone.prop[Zone.prop$Freq > 0.1,])  
+  zone1 <- droplevels(Zone.prop[Zone.prop$Freq > 0.04,])  
   sel_zone=unique(zone1$Zone)
   catch_main <- subset(catch,!duplicated(Reference) & Zone %in% sel_zone)
   catch_main
@@ -144,6 +144,7 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
   
   env <- droplevels( env %>% mutate(Year = substr(Date, 3,4), Month = substr(Date, 6,7)) %>% subset(Parameter == Param_name) %>% select(Actual_Latitude, Actual_Longitude, Characteristic,Parameter,Result_Unit, Result_Value, Year, Month, StationID))
   env$Month <- as.numeric(env$Month)
+  env$Year <- as.factor(env$Year)
   
   
   
@@ -236,19 +237,493 @@ joinEV <- function(catch, env, fuzzy_lat, fuzzy_long, var_name, Param_name) {
   
 } 
 
+joinCL <- function(catch, env, fuzzy_lat, fuzzy_long, var_name) {
+  env <- clorA
+  env <-  env %>% ungroup() %>% dplyr::select(-c(StationName, DAY))
+  env$Month <- as.numeric(env$Month)
+  env$Year <- as.numeric(env$Year)
+  
+  #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
+  main_Year <- unique(catch$year)
+  env = subset(env, Month <= max(unique(catch$month)) & Year %in% main_Year)
+  
+  
+  #selected <- NULL
+  nRow=nrow(catch)
+  selected <- as.list(seq_len(nRow))
+  #selected <- as.data.frame(matrix(data=NA, nrow=15000, ncol=7))
+  
+  # Start For Loop
+  for(i in 1:nrow(catch))
+  {
+    # re-initialize this data structs for new pass
+    #match_matrix <- as.list(seq_len(140))
+    match_matrix <- as.data.frame(matrix(data=NA, nrow=100, ncol=7))
+    hit_counter = 1 #initialize the hit counter that will be used in the below loop instead of indexing based off of j
+    
+    #define some variables
+    filler_dist = 9999
+    catch_year=catch[i,61]
+    catch_month=catch[i,30]-1  #lag 1 month
+    catch_lat=catch[i,65]
+    catch_long=catch[i,64]
+    catch_ref = catch[i,41]
+    TB_cor = as.numeric(c(catch[i,64], catch[i,65]))
+    
+    for(j in 1:nrow(env))
+    {
+      #define some more variables
+      nit_year=env[j,4]
+      nit_month=env[j,5]
+      nit_lat =env[j,2]
+      nit_long = env[j,3]
+      nit_val = env[j,6]
+      
+      if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+      {
+        print("NA Found")
+      }
+      else if((catch_year==nit_year)&(catch_month==nit_month))
+      {
+        #defining box to place around each coordinate pair assocaited with catch
+        # this reduces the amount of coordinate points that are selected from within env that are then used in a pairwise distance comparison
+        
+        fuzzymax_lat = catch_lat +fuzzy_lat #catch_sub$NewLat
+        fuzzymin_lat = catch_lat -fuzzy_lat
+        fuzzymax_long = catch_long + fuzzy_long #TBcatch$NewLong
+        fuzzymin_long = catch_long - fuzzy_long
+        
+        if((nit_lat > fuzzymin_lat) & (nit_lat < fuzzymax_lat) & (nit_long > fuzzymin_long) & (nit_long < fuzzymax_long)) 
+          #if the lat long of nitrogen falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+        {
+          
+          #m= as.data.frame(matrix(data=NA,nrow=1, ncol=7))
+          m= as.list(seq_len(7))
+          #m = data.frame(catch_month, catch_year, catch_ref, nit_val, nit_long, nit_lat, filler_dist)
+          m[1] = catch_month
+          m[2]= catch_year
+          m[3]= catch_ref     
+          m[4] = nit_val
+          m[5] = nit_long
+          m[6] = nit_lat
+          m[7]= filler_dist #placeholder for distance 
+          m_df <- data.frame(m, stringsAsFactors = FALSE)
+          #colnames(m_df) <- c("x1", "x2","X3", "X4", "X5", "X6", "X7")
+          
+          match_matrix[hit_counter,] <- m_df
+          hit_counter=hit_counter + 1
+          
+        }
+        
+      }
+      
+    }
+    match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+    match_matrix <- na.omit(match_matrix)
+    
+    nit_station_match = as.list(seq_len(1))
+    nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
+    
+    selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
+    var_name = do.call(rbind, selected) #do.call bind
+    
+  }
+  var_name
+  
+} 
+
+
+
+joinNit_AP <- function(catch, env, fuzzy_lat, fuzzy_long, var_name) {
+  env <- as.data.frame(env)
+  #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
+  env$Month <- as.character(as.numeric(env$Month))
+  env <- env %>% ungroup() %>% mutate(Year = substr(Year, 3,4)) 
+  
+  main_Year <- unique(catch$year)
+  env = as.data.frame(subset(env, Month <= max(unique(catch$month)) & Year %in% main_Year))
+  
+  #selected <- NULL
+  nRow=nrow(catch)
+  selected <- as.list(seq_len(nRow))
+  #selected <- as.data.frame(matrix(data=NA, nrow=15000, ncol=7))
+  catch$year <- as.character(catch$year)
+  # Start For Loop
+  for(i in 1:nrow(catch))
+  {
+    # re-initialize this data structs for new pass
+    #match_matrix <- as.list(seq_len(140))
+    match_matrix <- as.data.frame(matrix(data=NA, nrow=100, ncol=7))
+    hit_counter = 1 #initialize the hit counter that will be used in the below loop instead of indexing based off of j
+    
+    #define some variables
+    filler_dist = 9999
+    catch_year=catch[i,61]
+    catch_month=catch[i,30]-1  #lag 1 month
+    catch_lat=catch[i,65]
+    catch_long=catch[i, 64]
+    catch_ref = catch[i,41]
+    TB_cor = as.numeric(c(catch[i,64], catch[i,65]))
+    
+    for(j in 1:nrow(env))
+    {
+      #define some more variables
+      nit_year=env[j,2]
+      nit_month=env[j,3]
+      nit_lat =env[j,5]
+      nit_long = env[j,6]
+      nit_val = env[j,4]
+      
+      if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+      {
+        print("NA Found")
+      }
+      else if((catch_year==nit_year)&(catch_month==nit_month))
+      {
+        #defining box to place around each coordinate pair assocaited with catch
+        # this reduces the amount of coordinate points that are selected from within env that are then used in a pairwise distance comparison
+        
+        fuzzymax_lat = catch_lat +fuzzy_lat #catch_sub$NewLat
+        fuzzymin_lat = catch_lat -fuzzy_lat
+        fuzzymax_long = catch_long + fuzzy_long #TBcatch$NewLong
+        fuzzymin_long = catch_long - fuzzy_long
+        
+        if((nit_lat > fuzzymin_lat) & (nit_lat < fuzzymax_lat) & (nit_long > fuzzymin_long) & (nit_long < fuzzymax_long)) 
+          #if the lat long of nitrogen falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+        {
+          
+          #m= as.data.frame(matrix(data=NA,nrow=1, ncol=7))
+          m= as.list(seq_len(7))
+          #m = data.frame(catch_month, catch_year, catch_ref, nit_val, nit_long, nit_lat, filler_dist)
+          m[1] = catch_month
+          m[2]= catch_year
+          m[3]= catch_ref     
+          m[4] = nit_val
+          m[5] = nit_long
+          m[6] = nit_lat
+          m[7]= filler_dist #placeholder for distance 
+          m_df <- data.frame(m, stringsAsFactors = FALSE)
+          #colnames(m_df) <- c("x1", "x2","X3", "X4", "X5", "X6", "X7")
+          
+          match_matrix[hit_counter,] <- m_df
+          hit_counter=hit_counter + 1
+          
+        }
+        
+      }
+      
+    }
+    match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+    match_matrix <- na.omit(match_matrix)
+    
+    nit_station_match = as.list(seq_len(1))
+    nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
+    
+    selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
+    var_name = do.call(rbind, selected) #do.call bind
+    
+  }
+  var_name
+  
+} 
+
+
+
+
+joinSal_AP <- function(catch, env, fuzzy_lat, fuzzy_long, var_name) {
+  env <- as.data.frame(env)
+  #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
+  env$Month <- as.character(as.numeric(env$Month))
+  env <- env %>% ungroup() %>% mutate(Year = substr(Year, 3,4)) 
+  
+  main_Year <- unique(catch$year)
+  env = as.data.frame(subset(env, Month <= max(unique(catch$month)) & Year %in% main_Year))
+  
+  #selected <- NULL
+  nRow=nrow(catch)
+  selected <- as.list(seq_len(nRow))
+  #selected <- as.data.frame(matrix(data=NA, nrow=15000, ncol=7))
+  catch$year <- as.character(catch$year)  
+  # Start For Loop
+  for(i in 1:nrow(catch))
+  {
+    # re-initialize this data structs for new pass
+    #match_matrix <- as.list(seq_len(140))
+    match_matrix <- as.data.frame(matrix(data=NA, nrow=100, ncol=7))
+    hit_counter = 1 #initialize the hit counter that will be used in the below loop instead of indexing based off of j
+    
+    #define some variables
+    filler_dist = 9999
+    catch_year=catch[i,61]
+    catch_month=catch[i,30]-1  #lag 1 month
+    catch_lat=catch[i,65]
+    catch_long=catch[i, 64]
+    catch_ref = catch[i,41]
+    TB_cor = as.numeric(c(catch[i,64], catch[i,65]))
+    
+    for(j in 1:nrow(env))
+    {
+      #define some more variables
+      nit_year=env[j,1]
+      nit_month=env[j,2]
+      nit_lat =env[j,5]
+      nit_long = env[j,6]
+      nit_val = env[j,4]
+      
+      if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+      {
+        print("NA Found")
+      }
+      else if((catch_year==nit_year)&(catch_month==nit_month))
+      {
+        #defining box to place around each coordinate pair assocaited with catch
+        # this reduces the amount of coordinate points that are selected from within env that are then used in a pairwise distance comparison
+        
+        fuzzymax_lat = catch_lat +fuzzy_lat #catch_sub$NewLat
+        fuzzymin_lat = catch_lat -fuzzy_lat
+        fuzzymax_long = catch_long + fuzzy_long #TBcatch$NewLong
+        fuzzymin_long = catch_long - fuzzy_long
+        
+        if((nit_lat > fuzzymin_lat) & (nit_lat < fuzzymax_lat) & (nit_long > fuzzymin_long) & (nit_long < fuzzymax_long)) 
+          #if the lat long of nitrogen falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+        {
+          
+          #m= as.data.frame(matrix(data=NA,nrow=1, ncol=7))
+          m= as.list(seq_len(7))
+          #m = data.frame(catch_month, catch_year, catch_ref, nit_val, nit_long, nit_lat, filler_dist)
+          m[1] = catch_month
+          m[2]= catch_year
+          m[3]= catch_ref     
+          m[4] = nit_val
+          m[5] = nit_long
+          m[6] = nit_lat
+          m[7]= filler_dist #placeholder for distance 
+          m_df <- data.frame(m, stringsAsFactors = FALSE)
+          #colnames(m_df) <- c("x1", "x2","X3", "X4", "X5", "X6", "X7")
+          
+          match_matrix[hit_counter,] <- m_df
+          hit_counter=hit_counter + 1
+          
+        }
+        
+      }
+      
+    }
+    match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+    match_matrix <- na.omit(match_matrix)
+    
+    nit_station_match = as.list(seq_len(1))
+    nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
+    
+    selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
+    var_name = do.call(rbind, selected) #do.call bind
+    
+  }
+  var_name
+  
+} 
+
+joinEnv_IRJX <- function(catch, env, fuzzy_lat, fuzzy_long, var_name) {
+
+  env <- as.data.frame(env)
+  #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
+  env$Month <- as.numeric(env$Month)
+  env <- env %>% ungroup() %>% mutate(Year = substr(Year, 3,4)) 
+  
+  main_Year <- unique(catch$year)
+  env = as.data.frame(subset(env, Month <= max(unique(catch$month)) & Year %in% main_Year))
+  
+  #selected <- NULL
+  nRow=nrow(catch)
+  selected <- as.list(seq_len(nRow))
+  #selected <- as.data.frame(matrix(data=NA, nrow=15000, ncol=7))
+  catch$year <- as.character(catch$year)
+  # Start For Loop
+  for(i in 1:nrow(catch))
+  {
+    # re-initialize this data structs for new pass
+    #match_matrix <- as.list(seq_len(140))
+    match_matrix <- as.data.frame(matrix(data=NA, nrow=100, ncol=7))
+    hit_counter = 1 #initialize the hit counter that will be used in the below loop instead of indexing based off of j
+    
+    #define some variables
+    filler_dist = 9999
+    catch_year=catch[i,61]
+    catch_month=catch[i,30]-1  #lag 1 month
+    catch_lat=catch[i,65]
+    catch_long=catch[i, 64]
+    catch_ref = catch[i,41]
+    TB_cor = as.numeric(c(catch[i,64], catch[i,65]))
+    
+    for(j in 1:nrow(env))
+    {
+      #define some more variables
+      nit_year=env[j,2]
+      nit_month=env[j,3]
+      nit_lat =env[j,8]
+      nit_long = env[j,9]
+      nit_val = env[j,4]
+      
+      if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+      {
+        print("NA Found")
+      }
+      else if((catch_year==nit_year)&(catch_month==nit_month))
+      {
+        #defining box to place around each coordinate pair assocaited with catch
+        # this reduces the amount of coordinate points that are selected from within env that are then used in a pairwise distance comparison
+        
+        fuzzymax_lat = catch_lat +fuzzy_lat #catch_sub$NewLat
+        fuzzymin_lat = catch_lat -fuzzy_lat
+        fuzzymax_long = catch_long + fuzzy_long #TBcatch$NewLong
+        fuzzymin_long = catch_long - fuzzy_long
+        
+        if((nit_lat > fuzzymin_lat) & (nit_lat < fuzzymax_lat) & (nit_long > fuzzymin_long) & (nit_long < fuzzymax_long)) 
+          #if the lat long of nitrogen falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+        {
+          
+          #m= as.data.frame(matrix(data=NA,nrow=1, ncol=7))
+          m= as.list(seq_len(7))
+          #m = data.frame(catch_month, catch_year, catch_ref, nit_val, nit_long, nit_lat, filler_dist)
+          m[1] = catch_month
+          m[2]= catch_year
+          m[3]= catch_ref     
+          m[4] = nit_val
+          m[5] = nit_long
+          m[6] = nit_lat
+          m[7]= filler_dist #placeholder for distance 
+          m_df <- data.frame(m, stringsAsFactors = FALSE)
+          #colnames(m_df) <- c("x1", "x2","X3", "X4", "X5", "X6", "X7")
+          
+          match_matrix[hit_counter,] <- m_df
+          hit_counter=hit_counter + 1
+          
+        }
+        
+      }
+      
+    }
+    match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+    match_matrix <- na.omit(match_matrix)
+    
+    nit_station_match = as.list(seq_len(1))
+    nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
+    
+    selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
+    var_name = do.call(rbind, selected) #do.call bind
+    
+  }
+  var_name
+  
+} 
+
+joinEnv_CK <- function(catch, env, fuzzy_lat, fuzzy_long, var_name) {
+  
+  env <- as.data.frame(env)
+  #Trim some of the data based on months (want to retain the earlier months) and years(only want the exact same years as in the catch dataset) 
+  env$Month <- as.numeric(env$Month)
+  env <- env %>% ungroup() %>% mutate(Year = substr(Year, 3,4)) 
+  
+  main_Year <- unique(catch$year)
+  env = as.data.frame(subset(env, Month <= max(unique(catch$month)) & Year %in% main_Year))
+  
+  #selected <- NULL
+  nRow=nrow(catch)
+  selected <- as.list(seq_len(nRow))
+  #selected <- as.data.frame(matrix(data=NA, nrow=15000, ncol=7))
+  catch$year <- as.character(catch$year)
+  # Start For Loop
+  for(i in 1:nrow(catch))
+  {
+    # re-initialize this data structs for new pass
+    #match_matrix <- as.list(seq_len(140))
+    match_matrix <- as.data.frame(matrix(data=NA, nrow=100, ncol=7))
+    hit_counter = 1 #initialize the hit counter that will be used in the below loop instead of indexing based off of j
+    
+    #define some variables
+    filler_dist = 9999
+    catch_year=catch[i,61]
+    catch_month=catch[i,30]-1  #lag 1 month
+    catch_lat=catch[i,65]
+    catch_long=catch[i, 64]
+    catch_ref = catch[i,41]
+    TB_cor = as.numeric(c(catch[i,64], catch[i,65]))
+    
+    for(j in 1:nrow(env))
+    {
+      #define some more variables
+      nit_year=env[j,1]
+      nit_month=env[j,2]
+      nit_lat =env[j,3]
+      nit_long = env[j,4]
+      nit_val = env[j,5]
+      
+      if (is.na(catch_year) | is.na(catch_month) | is.na(catch_lat) | is.na(catch_long))
+      {
+        print("NA Found")
+      }
+      else if((catch_year==nit_year)&(catch_month==nit_month))
+      {
+        #defining box to place around each coordinate pair assocaited with catch
+        # this reduces the amount of coordinate points that are selected from within env that are then used in a pairwise distance comparison
+        
+        fuzzymax_lat = catch_lat +fuzzy_lat #catch_sub$NewLat
+        fuzzymin_lat = catch_lat -fuzzy_lat
+        fuzzymax_long = catch_long + fuzzy_long #TBcatch$NewLong
+        fuzzymin_long = catch_long - fuzzy_long
+        
+        if((nit_lat > fuzzymin_lat) & (nit_lat < fuzzymax_lat) & (nit_long > fuzzymin_long) & (nit_long < fuzzymax_long)) 
+          #if the lat long of nitrogen falls within the fuzzy lat long boundaries of the catch lat long found above then it will add into the dataframe below 
+        {
+          
+          #m= as.data.frame(matrix(data=NA,nrow=1, ncol=7))
+          m= as.list(seq_len(7))
+          #m = data.frame(catch_month, catch_year, catch_ref, nit_val, nit_long, nit_lat, filler_dist)
+          m[1] = catch_month
+          m[2]= catch_year
+          m[3]= catch_ref     
+          m[4] = nit_val
+          m[5] = nit_long
+          m[6] = nit_lat
+          m[7]= filler_dist #placeholder for distance 
+          m_df <- data.frame(m, stringsAsFactors = FALSE)
+          #colnames(m_df) <- c("x1", "x2","X3", "X4", "X5", "X6", "X7")
+          
+          match_matrix[hit_counter,] <- m_df
+          hit_counter=hit_counter + 1
+          
+        }
+        
+      }
+      
+    }
+    match_matrix[,7] = distm(match_matrix[,5:6], TB_cor) 
+    match_matrix <- na.omit(match_matrix)
+    
+    nit_station_match = as.list(seq_len(1))
+    nit_station_match <- match_matrix[match_matrix$V7 == min(match_matrix[,7], na.rm=T),] #select the nitrogen val from station that is closest of all 
+    
+    selected[[i]] <- nit_station_match #nitrogen station match adds in to predefined seleciton
+    var_name = do.call(rbind, selected) #do.call bind
+    
+  }
+  var_name
+  
+} 
+
 #build joinCD function ####
 
 #where env = the CD datasets (palmerZ, maxT and minT) and catch is the _main 
 joinCD <- function(catch,env,env2, env3){ 
-  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly)
+  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(Z_val=Value, Z_anom = Anomaly)
   env$month <- as.numeric(env$month)
   env$year <- as.numeric(env$year)
   
-  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly)
+  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MaxT_val =Value, MaxT_anom = Anomaly)
   env2$month <- as.numeric(env2$month)
   env2$year <- as.numeric(env2$year)
   
-  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MinT_val=Value, MinT_anom = Anomaly)
+  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MinT_val=Value, MinT_anom = Anomaly)
   env3$month <- as.numeric(env3$month)
   env3$year <- as.numeric(env3$year)
   
@@ -294,12 +769,12 @@ closestRiver = function(catch, riv){
 
 #TB_cat$river_flow <- 1
 
-join_riverflow = function(catch, streamflow){
+join_riverflow = function(catch, streamfl){
   
-  for (i in 1:nrow(TB_cat)){
-    cat_month = TB_cat[i,30]
-    cat_year = TB_cat[i,61] 
-    cat_riv = TB_cat[i,69] 
+  for (i in 1:nrow(catch)){
+    cat_month = catch[i,30]
+    cat_year = catch[i,61] 
+    cat_riv = catch[i,69] 
     
     
     for (j in 1:nrow(streamfl)){
@@ -309,7 +784,7 @@ join_riverflow = function(catch, streamflow){
       riv_name = streamfl[j,4]
       
       if((cat_riv==riv_name) & (cat_year == riv_year) & (cat_month == riv_month)){
-        TB_cat[i,70] <- riv_dis
+        catch[i,70] <- riv_dis
         
       } 
       
@@ -322,14 +797,14 @@ join_riverflow = function(catch, streamflow){
 
 #build clean rainfall function ####
 cleanRF <- function(rf, name) {
-  rf <- rf %>% dplyr::mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  dplyr::select(year, month, STATION_NAME, HOURLYPrecip)
-  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
-  tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
-  tot_rf$month <- as.numeric(tot_rf$month)
-  tot_rf$year <- as.numeric(tot_rf$year)
-  #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
-  colnames(tot_rf) <- c("year", "month", name)
-  tot_rf
+  rf <- rf
+  rf$DATE <- as.character(rf$DATE)
+  rf <- rf %>% dplyr::mutate(year = substr(DATE,1,4), month= substr(DATE, 6,7)) %>%  dplyr::select(year, month, PRCP)
+  rf$PRCP <- as.numeric(as.character(rf$PRCP))
+  rf$month <- as.numeric(rf$month)
+  rf$year <- as.numeric(rf$year)
+  colnames(rf) <- c("year", "month", name)
+  rf
 }
 
 # build clean/create seasonal streamflow function ####
@@ -374,7 +849,8 @@ join_seas_streamflow= function(catch, seas_sf){
     cat_year = catch[i,61] 
     previous_year = catch[i,61] - 1 #will this work: yes
     cat_riv = catch[i,69] #69
-    
+  
+    #assign spring dis to all months after entire spring season  
     if (cat_month >=6) { 
       
       for (j in 1:nrow(seas_sf)){
@@ -406,24 +882,9 @@ join_seas_streamflow= function(catch, seas_sf){
       }
     }
     
-    #  #assign autumn flow to all months after entire autumn season 
-    # if (cat_month >=11) { 
-    #    
-    #    for (j in 1:nrow(seas_sf)){
-    #      riv_year = seas_sf[j,1]
-    #      riv_seas = seas_sf[j,2]
-    #      riv_dis = seas_sf[j,3]
-    #      riv_name = seas_sf[j,4]
-    #      
-    #      if((cat_riv==riv_name) & (cat_year == riv_year) & (riv_seas == "autumn")){
-    #        catch[i,82] <- riv_dis
-    #      }
-    #    }
-    # }  
-    
-    #assign winter flow to closer months that might be affected
-    if (cat_month >=3 & cat_month <=5) { 
-      
+    #assign winter flow to all months after entire winter season
+    #if (cat_month >=3 & cat_month <=5) {  <- this was for closest months to winter
+    if  (cat_month >= 3) {
       for (j in 1:nrow(seas_sf)){
         riv_year = seas_sf[j,1]
         riv_seas = seas_sf[j,2]
@@ -436,9 +897,9 @@ join_seas_streamflow= function(catch, seas_sf){
       }
     }
     
-    #assign previous years autumn to early early months
-    if (cat_month <=5) { 
-      
+    #assign previous years autumn to all months after entire season
+    #if (cat_month <=5) { <- #assign previous years autumn to early early months
+    if(cat_month>=3){
       for (j in 1:nrow(seas_sf)){
         riv_year = seas_sf[j,1]
         riv_seas = seas_sf[j,2]
@@ -467,15 +928,15 @@ join_seas_streamflow= function(catch, seas_sf){
 
 clean_seasCD= function(env, env2, env3){
   
-  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(Z_val=Value, Z_anom = Anomaly) %>% select(-Date)
+  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(Z_val=Value, Z_anom = Anomaly) %>% select(-Date)
   env$month <- as.numeric(env$month)
   env$year <- as.numeric(env$year)
   
-  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% select(-Date)
+  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% select(-Date)
   env2$month <- as.numeric(env2$month)
   env2$year <- as.numeric(env2$year)
   
-  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% rename(MinT_val =Value, MinT_anom = Anomaly)%>% select(-Date)
+  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MinT_val =Value, MinT_anom = Anomaly)%>% select(-Date)
   env3$month <- as.numeric(env3$month)
   env3$year <- as.numeric(env3$year)
   
@@ -525,7 +986,7 @@ join_seasCD= function(catch, seasonal_CD){
     cat_month = catch[i,30]
     cat_year = catch[i,61] 
     previous_year = catch[i,61] - 1 #will this work: yes
-    
+    #assign spring CD to all months after entire spring season 
     if (cat_month >=6) { 
       
       for (j in 1:nrow(seasonal_CD)){
@@ -574,9 +1035,10 @@ join_seasCD= function(catch, seasonal_CD){
       }
     }
     
-    #assign winter flow to closer months that might be affected
-    if (cat_month >=3 & cat_month <=5) { 
-      
+    #assign winter flow to all months after entire winter season
+    #if (cat_month >=3 & cat_month <=5) { #assign winter flow to closer months that might be affected
+    
+     if (cat_month >= 3) {
       for (j in 1:nrow(seasonal_CD)){
         CD_year = seasonal_CD[j,1]
         CD_seas = seasonal_CD[j,2]
@@ -598,10 +1060,9 @@ join_seasCD= function(catch, seasonal_CD){
         }
       }
     }
-    
-    #assign previous years autumn to early early months
-    if (cat_month <=5) { 
-      
+    #assign previous years autumn to all months after entire season
+    #if (cat_month <=5) {#assign previous years autumn to early early months 
+     if (cat_month >=3) { 
       for (j in 1:nrow(seasonal_CD)){
         CD_year = seasonal_CD[j,1]
         CD_seas = seasonal_CD[j,2]
@@ -631,13 +1092,13 @@ join_seasCD= function(catch, seasonal_CD){
 
 clean_seasRF <- function(rf) {
   rf <- rf
-  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%m/%d/%Y"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, HOURLYPrecip)
-  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
+  rf$DATE <- as.character(rf$DATE)
+  rf <- rf %>% dplyr::mutate(year = substr(DATE,1,4), month= substr(DATE, 6,7)) %>%  dplyr::select(year, month, PRCP)
   rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
-  tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
-  tot_rf$year <- as.numeric(tot_rf$year)
-  colnames(tot_rf) <- c("year", "season", "total_rf")
-  tot_rf
+  rf <- rf %>% group_by(year, season) %>% dplyr::summarize(Seas_precip = mean(PRCP)) 
+  rf$year <- as.numeric(rf$year)
+  colnames(rf) <- c("year", "season", "total_rf")
+  rf
 }
 
 #build join seasonal rainfall ####
@@ -655,6 +1116,7 @@ join_seasRF= function(catch, seasonal_RF){
     cat_year = catch[i,61] 
     previous_year = catch[i,61] - 1 #will this work: yes
     
+    #assign spring flow to all months after entire spring season 
     if (cat_month >=6) { 
       
       for (j in 1:nrow(seasonal_RF)){
@@ -681,9 +1143,10 @@ join_seasRF= function(catch, seasonal_RF){
         }
       }
     }
-    #assign winter flow to closer months that might be affected
-    if (cat_month >=3 & cat_month <=5) { 
-      
+    
+    #assign winter to flow to all months after entire winter season
+    #if (cat_month >=3 & cat_month <=5) { #assign winter flow to closer months that might be affected
+     if (cat_month >=3) {
       for (j in 1:nrow(seasonal_RF)){
         RF_year = seasonal_RF[j,1]
         RF_seas = seasonal_RF[j,2]
@@ -693,10 +1156,11 @@ join_seasRF= function(catch, seasonal_RF){
           catch[i,113] <- RF_precip
         }
       }
-    }
-    #assign previous years autumn to early early months
-    if (cat_month <=5) { 
-      
+     }
+    
+    #assign previous years autumn to all months after entire season
+    #if (cat_month <=5) { #assign previous years autumn to early early months
+     if (cat_month >= 3) {
       for (j in 1:nrow(seasonal_RF)){
         RF_year = seasonal_RF[j,1]
         RF_seas = seasonal_RF[j,2]
@@ -729,6 +1193,7 @@ join_seas_streamALL= function(catch, seas_sf){
     previous_year = catch[i,61] - 1 #will this work: yes
     #cat_riv = catch[i,66] #66
     
+    #assign spring flow to all months after entire spring season
     if (cat_month >=6) { 
       
       for (j in 1:nrow(seas_sf)){
@@ -745,7 +1210,6 @@ join_seas_streamALL= function(catch, seas_sf){
     }
     
     #assign summer flow to all months after entire summer season
-    
     if (cat_month >=9) { 
       
       for (j in 1:nrow(seas_sf)){
@@ -759,8 +1223,9 @@ join_seas_streamALL= function(catch, seas_sf){
         }
       }
     }
-    
-    if (cat_month >=3 & cat_month <=5) { 
+    #assign winter to flow to all months after entire winter season
+    #if (cat_month >=3 & cat_month <=5) { #assign winter flow to closer months that might be affected
+    if (cat_month >=3) { 
       
       for (j in 1:nrow(seas_sf)){
         riv_year = seas_sf[j,1]
@@ -774,8 +1239,10 @@ join_seas_streamALL= function(catch, seas_sf){
       }
     }
     
-    #assign previous years autumn to early early months
-    if (cat_month <=5) { 
+    #assign previous years autumn to all months after entire season
+    #if (cat_month <=5) { #assign previous years autumn to early early months
+    if (cat_month >= 3) {
+      
       
       for (j in 1:nrow(seas_sf)){
         riv_year = seas_sf[j,1]
@@ -848,6 +1315,61 @@ clean_seas_sal_wt <- function(env, env2, Param_name1, Param_name2, selected_stat
   }
   join
 }
+
+
+
+AP_clean_seas_sal_wt <- function(env, env2,  selected_stations, flag){
+  
+    #do some selection/cleaning on the enviro data based on the catch data to thin the enviro set out
+    
+    env$StationCode <- trimws(env$StationCode, "right")
+    env2$StationCode <- trimws(env2$StationCode, "right")
+    
+    env = env[env$StationCode %in% selected_stations,] 
+    env$Month <- as.numeric(env$Month)
+    
+    env2 = env2 %>% subset(StationCode %in% selected_stations)
+    env2$Month <- as.numeric(env2$Month)
+    
+    if (flag == "seasonal") {   
+      join <- left_join(env, env2, by=c("Year", "Month", "StationCode"))
+      join$season <- ifelse(join$Month %in% c("4","5"), "first", ifelse(join$Month %in% c("6","7"), "second", ifelse(join$Month %in% c("8", "9"), "third", "NA")))
+      join<- join %>% group_by(Year, season) %>% summarize(Sal=mean(Sal), Temp=mean(Temp))
+    }
+    else if (flag == "monthly") {
+      join <- left_join(env, env2, by=c("Year", "Month", "StationCode")) 
+      join <- join %>% group_by(Year, Month) %>% summarize(Sal=mean(Sal), Temp=mean(Temp)) 
+    
+    }
+    join$Year <- as.factor(join$Year)
+    join
+}
+
+
+IRJX_clean_seas_sal_wt <- function(env, env2,  selected_stations, flag){
+  
+  #do some selection/cleaning on the enviro data based on the catch data to thin the enviro set out
+  
+  env = env[env$STN_NAME %in% selected_stations,] 
+  env$Month <- as.numeric(env$Month)
+  
+  env2 = env2[env2$STN_NAME %in% selected_stations,] 
+  env2$Month <- as.numeric(env2$Month)
+  
+  if (flag == "seasonal") {   
+    join <- left_join(env, env2, by=c("Year", "Month", "STN_NAME"))
+    join$season <- ifelse(join$Month %in% c("4","5"), "first", ifelse(join$Month %in% c("6","7"), "second", ifelse(join$Month %in% c("8", "9"), "third", "NA")))
+    join<- join %>% dplyr::group_by(Year, season) %>% dplyr::summarize(Sal=mean(Sal), Temp=mean(Temp))
+  }
+  else if (flag == "monthly") {
+    join <- left_join(env, env2, by=c("Year", "Month", "STN_NAME")) 
+    join <- join %>% dplyr::group_by(Year, Month) %>% dplyr::summarize(Sal=mean(Sal), Temp=mean(Temp)) 
+    
+  }
+  join$Year <- as.factor(join$Year)
+  join
+}
+
 
 # build join @spawning salinity & watertemp ####
 
@@ -968,6 +1490,27 @@ clean_seas_nitro <- function(env, selected_stations){
   nit_ag[order(nit_ag$year),]
 }
 
+AP_clean_seas_nitro <- function(env, selected_stations){
+  
+  env$Month <- as.numeric(env$Month)
+  env$StationCode <- trimws(env$StationCode, "right")
+   
+  env = env %>% subset(StationCode %in% selected_stations)
+  }
+
+
+IRJX_clean_seas_nitro <- function(env, selected_stations){
+  
+  env$Month <- as.numeric(env$Month)
+  env$STN_NAME <- trimws(env$STN_NAME, "right")
+  
+  env = env %>% subset(STN_NAME %in% selected_stations)
+}
+
+
+
+
+
 #build join seasonal nitro ####
 join_spawn_nitro = function(catch, seas_nitro) {
   catch$atspawn_nitro <- NA #127
@@ -1020,28 +1563,28 @@ join_spawn_nitro = function(catch, seas_nitro) {
 #merge rainfall CH ####
 #Charlotte harbor Date rainfall datasheet is set up differently than all of the rest so I can't do this using the function-must do this manually 
 
-cleanRF_CH <- function(rf, name) {
-  rf <- rf %>% dplyr::mutate(Date = as.Date(DATE, format= "%Y-%m-%d"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  dplyr::select(year, month, STATION_NAME, HOURLYPrecip)
-  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
-  tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
-  tot_rf$month <- as.numeric(tot_rf$month)
-  tot_rf$year <- as.numeric(tot_rf$year)
-  #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
-  colnames(tot_rf) <- c("year", "month", name)
-  tot_rf
-}
+# cleanRF_CH <- function(rf, name) {
+#   rf <- rf %>% dplyr::mutate(Date = as.Date(DATE, format= "%Y-%m-%d"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  dplyr::select(year, month, STATION_NAME, HOURLYPrecip)
+#   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
+#   tot_rf <- aggregate(HOURLYPrecip ~ year + month, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+#   tot_rf$month <- as.numeric(tot_rf$month)
+#   tot_rf$year <- as.numeric(tot_rf$year)
+#   #tb_tot_rf$month <- as.numeric(tb_tot_rf$month)
+#   colnames(tot_rf) <- c("year", "month", name)
+#   tot_rf
+# }
 
 #merge seas rainfall CH ####
-#by hand because column names are different for some reason
-
-clean_seasRF_CH <- function(rf) {
-  rf <- rf
-  rf <- rf %>% mutate(Date = as.Date(DATE, format= "%Y-%m-%d"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, HOURLYPrecip)
-  rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
-  rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
-  tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
-  tot_rf$year <- as.numeric(tot_rf$year)
-  colnames(tot_rf) <- c("year", "season", "total_rf")
-  tot_rf
-}
+# #by hand because column names are different for some reason
+# 
+# clean_seasRF_CH <- function(rf) {
+#   rf <- rf
+#   rf <- rf %>% mutate(Date = as.Date(DATE, format= "%Y-%m-%d"), year = substr(Date,1,4), month= substr(Date, 6,7)) %>%  select(year, month, HOURLYPrecip)
+#   rf$HOURLYPrecip <- as.numeric(rf$HOURLYPrecip)
+#   rf$season <- ifelse(rf$month %in% c("03","04","05"), "spring", ifelse(rf$month %in% c("06","07","08","09"), "summer", ifelse(rf$month %in% c("10","11", "12"), "autumn", ifelse(rf$month %in% c("01","02"), "winter", "NA"))))
+#   tot_rf <- aggregate(HOURLYPrecip ~ year + season, FUN=mean, data=rf)%>% rename(Monthly_precip=HOURLYPrecip)
+#   tot_rf$year <- as.numeric(tot_rf$year)
+#   colnames(tot_rf) <- c("year", "season", "total_rf")
+#   tot_rf
+# }
 

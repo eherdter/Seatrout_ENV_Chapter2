@@ -20,7 +20,7 @@ work_comp = "U:/PhD_projectfiles/Raw_Data/Seatrout_FIM_Data/FIMData/NEWNov7"
 setwd(personal_comp)
 setwd(work_comp)
 
-tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% select(number, Longitude, Latitude)
+tb = subset(read_sas("tb_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10)) %>% dplyr::select(number, Longitude, Latitude)
 ch = subset(read_sas("ch_yoy_cn_c.sas7bdat"), month %in% c(4,5,6,7,8,9,10) & !Reference %in% c("CHM1989051501","CHM1989051502","CHM1989051503")) %>% dplyr::mutate(bUnk=bunk) %>% dplyr::select(-bunk) %>% dplyr::select(number,Longitude, Latitude) 
 ir = subset(read_sas("ir_yoy_cn_c.sas7bdat"), month %in% c(5,6,7,8,9,10,11) & !Reference %in% c("IRM1997091503", "IRM1997101501", "IRM1997071407")) %>% dplyr::select(number,Longitude, Latitude)
 jx = subset(read_sas("jx_yoy_cn_c.sas7bdat") , month %in% c(5,6,7,8,9,10,11) & !Reference %in% c("JXM2001080703")) %>% dplyr::select(number,Longitude, Latitude)
