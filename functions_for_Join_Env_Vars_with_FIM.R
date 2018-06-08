@@ -38,6 +38,15 @@ tidy_catch = function(catch) {
 # fuzzy_long = 0.01 # 1 mile 
 
 
+#determine the width of 1 degree of longitude depends on what latitude
+# length (miles) of 1 degree oflongitude = cosine(latitude in dd) *length of degree (miles) at equator
+# florida is roughly 28 degree lat
+# 1 degree longitude = 66.5 miles in the middle of Florida
+
+#0.043* 66.5 = 2.8 miles 
+
+
+
 joinNit <- function(catch, env, fuzzy_lat, fuzzy_long, var_name){
   env <- data.frame(env)
   env$Date <- as.character(env$SampleDate)
@@ -727,9 +736,9 @@ joinCD <- function(catch,env,env2, env3){
   env3$month <- as.numeric(env3$month)
   env3$year <- as.numeric(env3$year)
   
-  new <- left_join(catch, env, by =c("year", "month")) %>% select(-c(Date))
-  new2 <- left_join(new, env2, by =c("year", "month")) %>% select(-c(Date))
-  new3 <- left_join(new2, env3, by =c("year", "month")) %>% select(-c(Date))
+  new <- left_join(catch, env, by =c("year", "month")) %>% dplyr::select(-c(Date))
+  new2 <- left_join(new, env2, by =c("year", "month")) %>% dplyr::select(-c(Date))
+  new3 <- left_join(new2, env3, by =c("year", "month")) %>% dplyr::select(-c(Date))
   
   new3
 } #END FUNCTION
@@ -738,7 +747,7 @@ joinCD <- function(catch,env,env2, env3){
 cleanSF <- function(sf, name){
   sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=substr(Date, 1,4), month=substr(Date, 6,7))
   colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "Date", "year", "month")
-  sf <- sf %>% select(-c(agency, site_no, datetime, code))
+  sf <- sf %>% dplyr::select(-c(agency, site_no, datetime, code))
   sf$value <- as.numeric(as.character(sf$value))
   av_sf <- aggregate(value ~ year + month, FUN= "mean", data=sf)
   av_sf$month <- as.numeric(av_sf$month)
@@ -795,6 +804,8 @@ join_riverflow = function(catch, streamfl){
 }
 
 
+
+
 #build clean rainfall function ####
 cleanRF <- function(rf, name) {
   rf <- rf
@@ -820,9 +831,9 @@ cleanRF <- function(rf, name) {
 
 cleanSF_withSeason <- function(sf, name){
   sf <- sf[-1,]
-  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=as.numeric(substr(Date, 1,4)), month=substr(Date, 6,7)) %>% select(-c(Date))
+  sf <- sf %>% mutate(Date = as.Date(datetime, format="%m/%d/%Y"), year=as.numeric(substr(Date, 1,4)), month=substr(Date, 6,7)) %>% dplyr::select(-c(Date))
   colnames(sf) <- c("agency", "site_no", "datetime", "value", "code", "year", "month")
-  sf <- sf %>% select(-c(agency, site_no, datetime, code))
+  sf <- sf %>% dplyr::select(-c(agency, site_no, datetime, code))
   sf$value <- as.numeric(as.character(sf$value))
   sf$season <- ifelse(sf$month %in% c("03","04","05"), "spring", ifelse(sf$month %in% c("06","07","08","09"), "summer", ifelse(sf$month %in% c("10","11", "12"), "autumn", ifelse(sf$month %in% c("01","02"), "winter", "NA"))))
   av_seas_sf <- aggregate(value ~ year + season, FUN= "mean", data=sf)
@@ -928,15 +939,15 @@ join_seas_streamflow= function(catch, seas_sf){
 
 clean_seasCD= function(env, env2, env3){
   
-  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(Z_val=Value, Z_anom = Anomaly) %>% select(-Date)
+  env <- env %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(Z_val=Value, Z_anom = Anomaly) %>% dplyr::select(-Date)
   env$month <- as.numeric(env$month)
   env$year <- as.numeric(env$year)
   
-  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% select(-Date)
+  env2 <- env2 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MaxT_val =Value, MaxT_anom = Anomaly) %>% dplyr::select(-Date)
   env2$month <- as.numeric(env2$month)
   env2$year <- as.numeric(env2$year)
   
-  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MinT_val =Value, MinT_anom = Anomaly)%>% select(-Date)
+  env3 <- env3 %>% mutate(year = substr(Date, 1, 4), month= substr(Date,5,6)) %>% dplyr::rename(MinT_val =Value, MinT_anom = Anomaly)%>% dplyr::select(-Date)
   env3$month <- as.numeric(env3$month)
   env3$year <- as.numeric(env3$year)
   
@@ -1559,6 +1570,42 @@ join_spawn_nitro = function(catch, seas_nitro) {
   catch[,129] <- rowMeans(cbind(spawn_1, spawn_2, spawn_3), na.rm=TRUE)
   catch
 }
+
+#join all rivers- very after the fact so some column index numebrs might be different
+join_ALLriver =function(catch, allriver, area){
+  
+  for (i in 1:nrow(catch)){
+    if (area == "TB") {
+    cat_month = catch[i,32]
+    cat_year = catch[i,63] 
+    }
+    
+    else if(area == "CH" | area == "IR" | area=="JX" | area=="CK") {
+      cat_month = catch[i,31]
+      cat_year = catch[i,62] 
+    }
+    
+    for (j in 1:nrow(allriver)){
+      riv_year = allriver[j,1]
+      riv_month = allriver[j,2]
+      riv_dis = allriver[j,3]
+      
+      if((cat_year == riv_year) & (cat_month == riv_month)){
+          if (area == "TB") {
+          catch[i,133] <- riv_dis
+          }
+        else if (area == "CH" | area == "IR") {
+          catch[i,131] <- riv_dis
+        }
+        else if(area == "JX" | area== "CK"){
+          catch[i,120] <- riv_dis
+        }
+      }
+      }
+    }
+  catch
+}
+
 
 #merge rainfall CH ####
 #Charlotte harbor Date rainfall datasheet is set up differently than all of the rest so I can't do this using the function-must do this manually 
