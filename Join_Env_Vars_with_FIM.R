@@ -163,12 +163,26 @@ tb_sg <- read.csv(paste(enviro_data, "SeagrassCover/SWFWMD_Seagrass_TB.csv", sep
 
 #add in streamflow
 tb_AR <- read.csv(paste(enviro_data, "Streamflow/TB/Alafia_River.csv", sep="/"), skip=28)
-tb_HR <- read.csv(paste(enviro_data, "Streamflow/TB/Hillsborough_river.csv", sep="/"), skip=28)
-tb_LMR <- read.csv(paste(enviro_data, "Streamflow/TB/Little.Manatee_River.csv", sep="/"), skip=28)
 
+tb_HR <- read.csv(paste(enviro_data, "Streamflow/TB/Hillsborough_river.csv", sep="/"), skip=28)
+colnames(tb_HR)[4] <- "fr"
+colnames(tb_HR)[5] <- "code"
+tb_LMR <- read.csv(paste(enviro_data, "Streamflow/TB/Little.Manatee_River.csv", sep="/"), skip=28)
+colnames(tb_LMR)[4] <- "fr"
+colnames(tb_LMR)[5] <- "code"
 #remove outliers from streamflow during interested time frame 
 tb_AR$X25177_00060_00003 <- as.numeric(as.character(tb_AR$X25177_00060_00003))
 tb_AR <- tb_AR[tb_AR$X25177_00060_00003<=10000,] #in 2004 there was a crazy wet season that matches up with the data
+colnames(tb_AR)[4] <- "fr"
+colnames(tb_AR)[5] <- "code"
+
+tb_all <- rbind(tb_AR, tb_HR, tb_LMR)
+tb_all$fr <- as.numeric(tb_all$fr)
+tb_all <- tb_all[-1,] %>% mutate(date=mdy(datetime), year=year(date), month=month(date))
+tb_all <- tb_all[-1,] %>% group_by(year, month) %>% dplyr::summarize(total_dis=mean(fr,na.rm=T))
+tb_all <- as.data.frame(tb_all)
+
+tb_all <- tb_all[complete.cases(tb_all),]
 
 #add in water temp
 tb_wt1 <- read.csv(paste(enviro_data, "WaterTemp/TB/Water_temperature_Hillsborough_Bay.csv", sep="/"))
@@ -177,7 +191,7 @@ tb_wt3 <- read.csv(paste(enviro_data, "WaterTemp/TB/Water_temperature_Middle_Tam
 tb_wt <- rbind(tb_wt1, tb_wt2, tb_wt3)
 
 # HERE convert water temp from F to C ####
-tb_wt <- tb_wt %>% 
+#tb_wt <- tb_wt %>% 
 
 
 #clean epc data and build DIN ####
@@ -267,7 +281,7 @@ streamfl <- rbind(tb_av_AR, tb_av_HR, tb_av_LMR)
 streamfl <- subset(streamfl, month >= min(unique(TB_cat$month)) & year>= min(unique(TB_cat$year)))
 
 
-TB_cat$riv_flow <- 1
+TB_cat$riv_flow <- NA
 TB_cat <- join_riverflow(TB_cat, streamfl)
 
 #merge nitrogen, phos, salinity, water temp ####
@@ -413,6 +427,15 @@ TB_cat_env7 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag.cs
 TB_cat_env8 <- left_join(TB_cat_env7, TB_clor, by="Reference")
 write.csv(TB_cat_env8, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag_plus_clor.csv", sep="/"))
 
+TB_cat_env9 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag_plus_clor.csv", sep="/"),header=T)
+
+tb_all <- tb_all[tb_all$year >= min(TB_cat_env9$year),]
+
+TB_cat_env9$allrivers <- NA
+TB_cat_env10 <- join_ALLriver(TB_cat_env9, tb_all, "TB")
+
+write.csv(TB_cat_env10, paste(out, "Seatrout_ENV_Chapter2/TB_all_env_with_lag_plus_clor.csv", sep="/"))
+
 
 # _____________________ ####
 # CHARLOTTE HARBOR ####
@@ -514,6 +537,28 @@ hist(ch_PeaR$X24488_00060_00003)
 hist(ch_ShellC$X24600_00060_00003)
 max(ch_ShellC$X24600_00060_00003, na.rm=T)
 subset(ch_ShellC, ch_ShellC$X24600_00060_00003>6000)
+
+colnames(ch_CaloR)[4] <- "fr"
+colnames(ch_CaloR)[5] <- "code"
+
+colnames(ch_MyakR)[4] <- "fr"
+colnames(ch_MyakR)[5] <- "code"
+
+colnames(ch_PeaR)[4] <- "fr"
+colnames(ch_PeaR)[5] <- "code"
+
+colnames(ch_ShellC)[4] <- "fr"
+colnames(ch_ShellC)[5] <- "code"
+
+ch_all <- rbind(ch_CaloR, ch_MyakR, ch_PeaR, ch_ShellC)
+ch_all$fr <- as.numeric(ch_all$fr)
+
+ch_all <- ch_all[-1,] %>% mutate(date=mdy(datetime), year=year(date), month=month(date))
+ch_all <- ch_all[-1,] %>% group_by(year, month) %>% dplyr::summarize(total_dis=mean(fr,na.rm=T))
+ch_all <- as.data.frame(ch_all)
+
+ch_all <- ch_all[complete.cases(ch_all),]
+
 
 #add in water temp
 ch_wt <- read.csv(paste(enviro_data, "WaterTemp/CH/WaterTemp_CH.csv", sep="/"))
@@ -774,6 +819,15 @@ CH_cat_env7 = join_spawn_nitro(CH_cat_env6, seas_nitro)
 
 # trim and output ####
 write.csv(CH_cat_env7, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_with_lag.csv", sep="/"))
+
+CH_cat_env8 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CH_all_env_with_lag.csv", sep="/"), header=T)
+
+ch_all <- ch_all[ch_all$year >= min(CH_cat_env8$year),]
+CH_cat_env8$allrivers <- NA
+
+CH_cat_env9  <- join_ALLriver(CH_cat_env8, ch_all, "CH")
+write.csv(CH_cat_env9, paste(out, "Seatrout_ENV_Chapter2/CH_all_env_with_lag.csv", sep="/"))
+
 
 # ________________####
 # APPALACHICOLA####
@@ -1152,15 +1206,21 @@ ir_sal <- read.csv(paste(enviro_data, "Salinity/IR/IR_sal.csv", sep="/"), skip=2
 ir_CC <- read.csv(paste(enviro_data, "Streamflow/IR/Crane_Creek.csv", sep="/"), skip=28)
 ir_CC$X23062_00060_00003 <- as.numeric(as.character(ir_CC$X23062_00060_00003))
 hist(ir_CC$X23062_00060_00003)
+colnames(ir_CC)[4] <- "fr"
+colnames(ir_CC)[5] <- "code"
 
 ir_EG <- read.csv(paste(enviro_data, "Streamflow/IR/Eau_Gallie.csv", sep="/"), skip=28)
 ir_EG$X23060_00060_00003 <- as.numeric(as.character(ir_EG$X23060_00060_00003))
 hist(ir_EG$X23060_00060_00003)
+colnames(ir_EG)[4] <- "fr"
+colnames(ir_EG)[5] <- "code"
 
 ir_TC <- read.csv(paste(enviro_data, "Streamflow/IR/Turkey_Creek.csv", sep="/"), skip=28)
 ir_TC$X23082_00060_00003 <- as.numeric(as.character(ir_TC$X23082_00060_00003))
 hist(ir_TC$X23082_00060_00003)
 ir_TC <- ir_TC[,1:5]
+colnames(ir_TC)[4] <- "fr"
+colnames(ir_TC)[5] <- "code"
 
 ir_FC <- read.csv(paste(enviro_data, "Streamflow/IR/Fellsmere_Canal.csv", sep="/"), skip=28)
 ir_NPSS <- read.csv(paste(enviro_data, "Streamflow/IR/North_Prong_St_Sebastian.csv", sep="/"), skip=28)
@@ -1188,6 +1248,18 @@ ir_SScomb <- comb %>% dplyr::select(agency_cd, site_no, datetime, TotDis)
 ir_SScomb$code <-NA
 hist(ir_SScomb$TotDis)
 max(ir_SScomb$TotDis)
+ir_SScomb <- ir_SScomb %>% dplyr::rename(fr = TotDis)
+
+ir_all <- rbind(ir_CC, ir_EG, ir_TC, ir_SScomb)
+ir_all <- ir_all[complete.cases(ir_all),]
+ir_all$fr <- as.numeric(ir_all$fr)
+
+ir_all <- ir_all %>% mutate(date=mdy(datetime), year=year(date), month=month(date))
+ir_all <- ir_all %>% group_by(year, month) %>% dplyr::summarize(total_dis=mean(fr, na.rm=T))
+ir_all <- as.data.frame(ir_all)
+
+
+
 
 
 #add in water temp - Temp is in Cels
@@ -1408,6 +1480,15 @@ IR_cat_env7 = join_spawn_nitro(IR_cat_env6, seas_nitro)
 #trim and output ####
 write.csv(IR_cat_env7, paste(out, "Seatrout_ENV_Chapter2/IR_all_env_with_lag.csv", sep="/"))
 
+IR_cat_env8 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/IR_all_env_with_lag.csv", sep="/"), header=T)
+ir_all <- ir_all[ir_all$year >= min(IR_cat_env8$year),]
+IR_cat_env8$allrivers <- NA
+
+IR_cat_env9  <- join_ALLriver(IR_cat_env8, ir_all, "IR")
+
+write.csv(IR_cat_env9, paste(out, "Seatrout_ENV_Chapter2/IR_all_env_with_lag.csv", sep="/"))
+
+
 # ________________####
 # BUILD OUT - JX####
 # _______________ ####
@@ -1475,11 +1556,26 @@ jx_rf <- rbind(jx_rf1, jx_rf2, jx_rf3)
 jx_SJB <- read.csv(paste(enviro_data, "Streamflow/JX/St.Johns_River_at_Buff_Bluff.csv", sep="/"), skip=28)
 jx_SJB <- jx_SJB[,c(1:3,6,7)] #tidally filtered
 jx_SJB$X22695_72137_00003 <- as.numeric(as.character(jx_SJB$X22695_72137_00003))
+jx_SJB$X22695_72137_00003[jx_SJB$X22695_72137_00003 <0] <-0
+jx_SJB$X22695_72137_00003[jx_SJB$X22695_72137_00003 >20000] <-20000
+colnames(jx_SJB)[4] <- "fr"
+colnames(jx_SJB)[5] <- "code"
+
 jx_SJJ <- read.csv(paste(enviro_data, "Streamflow/JX/St.Johns_River_at_Jax.csv", sep="/"), skip=28)
 jx_SJJ <- jx_SJJ[,c(1:3,6,7)] #tidally filtered
+jx_SJJ$X22880_72137_00003<- as.numeric(as.character(jx_SJJ$X22880_72137_00003))
+jx_SJJ$X22880_72137_00003[jx_SJJ$X22880_72137_00003 <0] <-0
+jx_SJJ$X22880_72137_00003[jx_SJJ$X22880_72137_00003 >40000] <-40000
+colnames(jx_SJJ)[4] <- "fr"
+colnames(jx_SJJ)[5] <- "code"
 
 jx_SMR <- read.csv(paste(enviro_data, "Streamflow/JX/St.Marys_River.csv", sep="/"), skip=28)
-jx_SMR <- jx_SJJ[,c(1:5)] #tidally filtered
+jx_SMR <- jx_SMR[,c(1:5)] #tidally filtered
+jx_SMR$X36086_00060_00021 <- as.numeric(as.character(jx_SMR$X36086_00060_00021 ))
+jx_SMR$X36086_00060_00021 [jx_SMR$X36086_00060_00021  <0] <- 0
+jx_SMR$X36086_00060_00021 [jx_SMR$X36086_00060_00021  >30000] <-30000
+colnames(jx_SMR)[4] <- "fr"
+colnames(jx_SMR)[5] <- "code"
 
 #make new combined river ####
 jx_CR <- read.csv(paste(enviro_data, "Streamflow/JX/Cedar_River.csv", sep="/"), skip=28)
@@ -1496,8 +1592,22 @@ jx_OR$X22845_00060_00003 <- as.numeric(as.character(jx_OR$X22845_00060_00003))
 
 comb <- full_join(jx_OR, jx_CR, by=c("Year", "Month", "Day")) 
 comb$TotDis <-  rowSums(comb[c('X22845_00060_00003', 'X22860_72137_00003')], na.rm=T)
-jx_OCR <- comb %>% select(agency_cd.x, site_no.x, datetime.x, TotDis) %>% rename(agency_cd=agency_cd.x, site_no = site_no.x, datetime=datetime.x)
+jx_OCR <- comb %>% dplyr::select(agency_cd.x, site_no.x, datetime.x, TotDis) %>% dplyr::rename(agency_cd=agency_cd.x, site_no = site_no.x, datetime=datetime.x)
 jx_OCR$code <-NA
+jx_OCR$TotDis[jx_OCR$TotDis <0] <-0
+jx_OCR$TotDis[jx_OCR$TotDis >2000] <-2000
+jx_OCR <- jx_OCR %>% dplyr::rename(fr=TotDis)
+
+jx_all <- rbind(jx_SJB, jx_SJJ, jx_SMR, jx_OCR)
+jx_all <- jx_all[complete.cases(jx_all),]
+jx_all$fr <- as.numeric(jx_all$fr)
+
+jx_all <- jx_all %>% mutate(date=mdy(datetime), year=year(date), month=month(date))
+jx_all <- jx_all %>% group_by(year, month) %>% dplyr::summarize(total_dis=mean(fr,na.rm=T))
+jx_all <- as.data.frame(jx_all)
+
+
+
 
 #add in Cedar key station data that contains nitrogen, salinity, water temp 
 station1 <- read.csv(paste(enviro_data, "station_JX_stjohn.csv", sep="/"))%>% dplyr::select(MonitoringLocationIdentifier, LatitudeMeasure, LongitudeMeasure)
@@ -1582,16 +1692,16 @@ jx_new <- jx_new  %>% ungroup() %>% dplyr::mutate(DIN =rowSums(.[5:7],na.rm=T))
 # write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/JX_nit_join_043_DIN.csv", sep="/"))
 # 
 # #Sal
- tic()
- sal_full <- joinEnv_IRJX(JX_red, jx_sal, 0.043, 0.043, salinity) 
- toc()
- write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/JX_sal_join_043.csv", sep="/")) 
+# tic()
+# sal_full <- joinEnv_IRJX(JX_red, jx_sal, 0.043, 0.043, salinity) 
+# toc()
+# write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/JX_sal_join_043.csv", sep="/")) 
 # 
 # #wat temp
- tic()
- wt_full <- joinEnv_IRJX(JX_red, jx_wt, 0.0432, 0.0432, waterTemp) 
- toc()
- write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/JX_wt_join_043.csv", sep="/")) 
+# tic()
+# wt_full <- joinEnv_IRJX(JX_red, jx_wt, 0.0432, 0.0432, waterTemp) 
+# toc()
+# write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/JX_wt_join_043.csv", sep="/")) 
 
 #merge closest river mouth ####
 #jx_CR <- read.csv(paste(enviro_data, "Streamflow/JX/Cedar_River.csv", sep="/"), skip=28)
@@ -1628,8 +1738,9 @@ streamfl <- rbind(jx_av_OCR, jx_av_SJB, jx_av_SJJ, jx_av_SMR)
 streamfl <- subset(streamfl, month >= min(unique(JX_cat$month)) & year>= min(unique(JX_cat$year)))
 
 
-JX_cat$riv_flow <- 1
+JX_cat$riv_flow <- NA
 JX_cat <- join_riverflow(JX_cat, streamfl)
+JX_cat$riv_flow[JX_cat$riv_flow <0] <- 0
 
 
 #merge nitrogen, phos, salinity, water temp ####
@@ -1745,19 +1856,15 @@ JX_cat_env4 <- join_seas_streamALL(JX_cat_env3, seas_ALLsf)
 #trim and output ####
 write.csv(JX_cat_env4, paste(out, "Seatrout_ENV_Chapter2/JX_all_env_with_lag.csv", sep="/"))
 
+JX_cat_env5 <-read.csv(paste(out, "Seatrout_ENV_Chapter2/JX_all_env_with_lag.csv", sep="/"), header=T)
 
 
+jx_all <- jx_all[jx_all$year >= min(JX_cat_env5$year),]
+JX_cat_env5$allrivers <- NA
 
+JX_cat_env6  <- join_ALLriver(JX_cat_env5, jx_all, "JX")
 
-
-
-
-
-
-
-
-
-
+write.csv(JX_cat_env6, paste(out, "Seatrout_ENV_Chapter2/JX_all_env_with_lag.csv", sep="/"))
 
 
 # ________________####
@@ -1853,16 +1960,30 @@ ck_rf <- rbind(ck_rf1, ck_rf2, ck_rf3)
 range(ck_rf$PRCP, na.rm=T)
 
 #add in streamflow
-ck_SR <- read.csv(paste(enviro_data, "Streamflow/CK/Suwannee_River.csv", sep="/"), skip=28)
-ck_SR$X26706_72137_00003 <- as.numeric(as.character(ck_SR$X26706_72137_00003)) #tidally filtered
-hist(ck_SR$X26706_72137_00003)
-ck_SR <- ck_SR[,c(1:3,6,7)]
+ck_SR <- read.csv(paste(enviro_data, "Streamflow/CK/Suwannee_River2.csv", sep="/"), skip=28)
+ck_SR$X26639_00060_00003<- as.numeric(as.character(ck_SR$X26639_00060_00003)) 
+hist(ck_SR$X26639_00060_00003)
+ck_SR$X26639_00060_00003[ck_SR$X26639_00060_00003 > 40000] <- 40000
+ck_SR <- ck_SR[,c(1:3, 6:7)]
+colnames(ck_SR)[4] <- "fr"
+colnames(ck_SR)[5] <- "code"
 
 ck_WR <- read.csv(paste(enviro_data, "Streamflow/CK/Waccasassa_River.csv", sep="/"), skip=28)
 ck_WR$X26352_00060_00003 <- as.numeric(as.character(ck_WR$X26352_00060_00003))
 hist(ck_WR$X26352_00060_00003)
 range(ck_WR$X26352_00060_00003, na.rm=T)
 ck_WR$X26352_00060_00003[ck_WR$X26352_00060_00003 <0] <- 0
+colnames(ck_WR)[4] <- "fr"
+colnames(ck_WR)[5] <- "code"
+
+ck_all <-rbind(ck_SR, ck_WR)
+
+ck_all <- ck_all[complete.cases(ck_all),]
+ck_all$fr <- as.numeric(ck_all$fr)
+
+ck_all <- ck_all %>% mutate(date=mdy(datetime), year=year(date), month=month(date))
+ck_all <- ck_all %>% group_by(year, month) %>% dplyr::summarize(total_dis=mean(fr,na.rm=T))
+ck_all <- as.data.frame(ck_all)
 
 
 # join nitrogen, salinity, water temp ####
@@ -1873,16 +1994,16 @@ ck_WR$X26352_00060_00003[ck_WR$X26352_00060_00003 <0] <- 0
 # write.csv(nit_full, paste(out, "Seatrout_ENV_Chapter2/JX_nit_join_043_DIN.csv", sep="/"))
 
 #Sal
-tic()
-sal_full <- joinEnv_CK(CK_red, ck_sal, 0.0432, 0.0432, salinity) 
-toc()
-write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CK_sal_join_043.csv", sep="/")) 
+#tic()
+#sal_full <- joinEnv_CK(CK_red, ck_sal, 0.0432, 0.0432, salinity) 
+#toc()
+#write.csv(sal_full, paste(out, "Seatrout_ENV_Chapter2/CK_sal_join_043.csv", sep="/")) 
 
 #wat temp
-tic()
-wt_full <- joinEnv_CK(CK_red, ck_wt, 0.0432, 0.0432, waterTemp) 
-toc()
-write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CK_wt_join_043.csv", sep="/")) 
+#tic()
+#wt_full <- joinEnv_CK(CK_red, ck_wt, 0.0432, 0.0432, waterTemp) 
+#toc()
+#write.csv(wt_full, paste(out, "Seatrout_ENV_Chapter2/CK_wt_join_043.csv", sep="/")) 
 
 # TO DO - merge closest river mouth ####
 SR_mouth = c(-83.1702, 29.2968) #, "CC") 
@@ -1904,7 +2025,7 @@ ck_av_WR <- cleanSF(ck_WR, "WR") #mean discharge in cubic feet/second
 streamfl <- rbind(ck_av_SR, ck_av_WR)
 streamfl <- subset(streamfl, month >= min(unique(CK_cat$month)) & year>= min(unique(CK_cat$year)))
 
-CK_cat$riv_flow <- 1
+CK_cat$riv_flow <- NA
 CK_cat <- join_riverflow(CK_cat, streamfl)
 
 # TO DO - merge nitrogen, phos, salinity, water temp ####
@@ -1996,7 +2117,7 @@ seas_ALLsf <- cleanSF_withSeason(all_streams, "Mean_dis_ALL_sf")
 CK_cat_env4 <- join_seas_streamALL(CK_cat_env3, seas_ALLsf)
 
 # HERE TO DO merge seasonal salinity and water temp ####
-selected_stations <- c("141", "177", "179", "CHV011", "159" )
+#selected_stations <- c("141", "177", "179", "CHV011", "159" )
 #which 
 
 #spawn_SAWT <- clean_seas_sal_wt(jx_sal_select,jx_wt_select,selected_stations, "monthly")
@@ -2016,9 +2137,15 @@ selected_stations <- c("141", "177", "179", "CHV011", "159" )
 write.csv(CK_cat_env4, paste(out, "Seatrout_ENV_Chapter2/CK_all_env_with_lag.csv", sep="/"))
 
 
+CK_cat_env5 <- read.csv(paste(out, "Seatrout_ENV_Chapter2/CK_all_env_with_lag.csv", sep="/"), header=T)
 
 
+ck_all <- ck_all[ck_all$year >= min(CK_cat_env5$year),]
+CK_cat_env5$allrivers <- NA
 
+CK_cat_env6  <- join_ALLriver(CK_cat_env5, ck_all, "CK")
+
+write.csv(CK_cat_env6, paste(out, "Seatrout_ENV_Chapter2/CK_all_env_with_lag.csv", sep="/"))
 
 
 
