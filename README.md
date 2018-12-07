@@ -1,14 +1,21 @@
 # Seatrout_ENV_Chapter2
 
-# Goal is to join all relevant environmental data downloaded from several different sources (EPA, USGS, Tampa Bay Water Atlas, Southwest Water Management District, St. Johns Water Management District) with the catch observations for young of the year spotted seatrout. 
+This repository holds scripts to:
 
-# Data types include
+1. Join all relevant environmental data downloaded from several different sources (EPA, USGS, Tampa Bay Water Atlas, Southwest Water Management District, St. Johns Water Management District) with the catch observations for young of the year spotted seatrout. 
+
+* Data types include
   * Nutrient data
   * Rainfall data
+  * Drought indices
+  * Temperature data
   * Time Lagged Salinity Data
   * Time Lagged Temperature Data
-  * Seagrass Cover
-  
-# These will be joined with the FIM catch data sets, FIM hydro datasets (contain hydro observations at the moment of the haul), FIM physical datasets (turbidity proxy at the moment of the haul)
 
-# Boosted regression trees will be used to determine variable significance for each estuary. 
+2. Use helper functions for cleaning and filtering the environmental data
+3. Use helper functions for joining the enviro data to the catch data using spatial and temporal rules
+4. Use extreme gradient boosting (XGBoost) to determine the importance of each environmental predictor to young of the year recruitment. 
+5. Use helpder functions for predictor screening and the functions of extreme gradient boosting. 
+3. Visualize gain values (predictor importance). 
+
+
