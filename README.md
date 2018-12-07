@@ -1,6 +1,6 @@
 # Seatrout_ENV_Chapter2
 
-This repository holds scripts to:
+This repository holds scripts that I used for the second chapter of my dissertation. 
 
 1. Join all relevant environmental data downloaded from several different sources (EPA, USGS, Tampa Bay Water Atlas, Southwest Water Management District, St. Johns Water Management District) with the catch observations for young of the year spotted seatrout. 
 
